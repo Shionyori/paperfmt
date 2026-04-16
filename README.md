@@ -15,7 +15,7 @@ MVP scope:
 ```bash
 # Ubuntu example
 sudo apt update
-sudo apt install -y pandoc texlive-xetex texlive-fonts-recommended texlive-latex-extra texlive-publishers fonts-noto-cjk
+sudo apt install -y pandoc texlive-xetex texlive-latex-recommended texlive-fonts-recommended texlive-latex-extra texlive-publishers lmodern fonts-noto-cjk
 ```
 
 2. Install paperfmt:

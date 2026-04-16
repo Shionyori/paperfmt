@@ -25,6 +25,21 @@ def _format_compile_error(stderr: str, log_path: str | None) -> str:
             "\nHint: IEEE template requires IEEEtran.cls. "
             "Install TeX package 'texlive-publishers' (Ubuntu/Debian) or the equivalent package on your system."
         )
+    elif "fontspec.sty" in stderr:
+        hint = (
+            "\nHint: Missing LaTeX package fontspec. "
+            "Install 'texlive-latex-recommended' (and usually 'texlive-xetex') on Ubuntu/Debian."
+        )
+    elif "xeCJK.sty" in stderr:
+        hint = (
+            "\nHint: Missing xeCJK package. "
+            "Install 'texlive-lang-chinese' on Ubuntu/Debian if you need CJK support."
+        )
+    elif "TU/lmr" in stderr or "lmroman10-regular" in stderr:
+        hint = (
+            "\nHint: Missing Latin Modern fonts. "
+            "Install package 'lmodern' (and usually 'texlive-fonts-recommended') on Ubuntu/Debian."
+        )
 
     log_hint = f"\nBuild log: {log_path}" if log_path else ""
     return f"Pandoc/LaTeX failed. Last log lines:\n{excerpt}{hint}{log_hint}"

@@ -4,10 +4,9 @@
   \usepackage[T1]{fontenc}
   \usepackage[utf8]{inputenc}
 \else
-  \usepackage{fontspec}
-  \usepackage{xeCJK}
-  \setmainfont{Times New Roman}
-  \setCJKmainfont{Noto Serif CJK SC}
+  \IfFileExists{xeCJK.sty}{
+    \usepackage{xeCJK}
+  }{}
 \fi
 \usepackage{graphicx}
 \usepackage{hyperref}
