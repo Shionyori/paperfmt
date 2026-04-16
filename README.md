@@ -30,6 +30,30 @@ pip install -e .
 paperfmt build samples/paper.md --style ieee -o dist/paper.pdf
 ```
 
+## Project-Bound Dependencies (Recommended for Windows/Linux Portability)
+
+If you want all non-Python dependencies bound to the project (Pandoc/LaTeX/fonts) and avoid per-machine setup, use Docker.
+
+1. Build the toolchain image once:
+
+```bash
+docker build -t paperfmt:local .
+```
+
+2. Run paperfmt in the container (Linux/macOS shell):
+
+```bash
+./scripts/paperfmt-docker.sh build samples/paper.md --style ieee -o dist/paper.pdf --keep-log --keep-tex
+```
+
+3. Run paperfmt in the container (Windows PowerShell):
+
+```powershell
+./scripts/paperfmt-docker.ps1 build samples/paper.md --style ieee -o dist/paper.pdf --keep-log --keep-tex
+```
+
+This keeps dependency installation inside the image, not your host system. The project directory is mounted into `/workspace`, so build artifacts still appear in local `dist/`.
+
 ## Configuration
 
 Create `paperfmt.yaml` in your project root:
