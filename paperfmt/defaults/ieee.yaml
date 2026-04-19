@@ -1,6 +1,0 @@
-style: ieee
-engine: xelatex
-timeout_seconds: 30
-output_dir: dist
-keep_tex: false
-keep_log: false
