@@ -1,58 +1,13 @@
+简体中文 | [English](./README.en.md)
+
 # paperfmt
 
-paperfmt is a CLI tool for paper template compliance checks and safe auto-fixes.
+paperfmt 是一个面向论文投稿前质检的 CLI 工具。
 
-Current scope:
-- Input: LaTeX source file (mainly `main.tex`)
-- Template: `ieee-conf` (extensible)
-- Positioning: checker/fixer, not editor and not compiler wrapper
+当前稳定模板：`ieee-conf`。
 
-## Why this project
 
-Users can already compile LaTeX directly.
-paperfmt focuses on higher-value tasks before submission:
-- detect formatting/compliance issues quickly
-- provide actionable diagnostics
-- apply non-semantic safe fixes
-
-## Quick Start
-
-1. Install:
-
-```bash
-pip install -e '.[dev]'
-```
-
-2. Initialize a starter template project:
-
-```bash
-paperfmt init --template ieee-conf --out .
-```
-
-Generated structure:
-
-```text
-my-paper/
-├── paperfmt.toml
-├── .paperfmt/
-│   ├── backup/main.tex.bak
-│   └── report.txt
-└── main.tex                # 你的已有论文文件（若存在则会自动备份）
-```
-
-3. Run checks anytime:
-
-```bash
-paperfmt check main.tex --template ieee-conf
-```
-
-4. Apply safe fixes:
-
-```bash
-paperfmt fix main.tex --template ieee-conf
-```
-
-## Commands
+## 命令说明
 
 ```bash
 paperfmt init --template ieee-conf [--out DIR] [--force]
@@ -60,26 +15,51 @@ paperfmt check [INPUT.tex] [--template ieee-conf] [--config paperfmt.toml] [--fo
 paperfmt fix [INPUT.tex] [--template ieee-conf] [--config paperfmt.toml] [--dry-run] [--backup/--no-backup]
 ```
 
-`init` only bootstraps tool files (`paperfmt.toml` and `.paperfmt/`) and does not create sample paper sources.
+说明：
+- `init` 初始化工具文件。
+- `check` / `fix` 默认读取 `paperfmt.toml` 中的 `main_tex`、`bibliography`、`rules`。
+- 所有执行记录会追加到 `.paperfmt/report.txt`。
 
-`paperfmt.toml` is plain text and drives the rule engine (`paperfmt.toml -> RuleSet -> plugins`).
+## 配置驱动
 
-## Current built-in checks
+`paperfmt.toml` 是纯文本配置，驱动链路为：
 
-- Figure caption order (IEEE001)
-- Table caption order (IEEE002)
-- Citation style normalization target (IEEE003)
-- Required abstract environment (IEEE004)
-- Recommended IEEE keywords environment (IEEE005)
+`paperfmt.toml -> RuleSet -> template rules plugins`
 
-## Safe auto-fixes currently supported
+你可以手动修改：
+- `main_tex`
+- `bibliography`
+- `state_dir`
+- 每条规则的 `enabled` / `severity`
 
-- move figure caption below `\\includegraphics`
-- move table caption above `\\begin{tabular}`
-- normalize `\\citep{}` / `\\citet{}` to `\\cite{}`
+## 已实现规则（ieee-conf）
 
-## Roadmap
+- `IEEE001` 图注位置检查（图注应在 `\\includegraphics` 后）
+- `IEEE002` 表注位置检查（表注应在 `tabular` 前）
+- `IEEE003` 引用命令规范化建议（`\\citep` / `\\citet`）
+- `IEEE004` 缺失 `abstract` 环境
+- `IEEE005` 缺失 `IEEEkeywords` 环境
+- `IEEE006` 双盲匿名泄漏（作者块）
+- `IEEE007` 已引用条目 DOI 缺失
+- `CITE-MANUAL` 手写数字引用（如 `[1]`）
+- `REF-HARDCODE` 硬编码交叉引用（如 `Eq. (1)`）
+- `TAB-FORMAT` 表格 `\\hline` 风格检查（建议 `booktabs`）
+- `BIB-CROSSCHECK` `.tex` 与 `.bib` 双向比对（缺失键/未引用条目）
 
-- Interactive preview and undo for fixes
-- More submission checks: anonymization leakage, DOI completeness, image resolution, link validity
-- Additional templates beyond IEEE
+## 已实现自动修复（safe fixes）
+
+- 图注位置修正（`IEEE001`）
+- 表注位置修正（`IEEE002`）
+- `\\citep` / `\\citet` 归一化为 `\\cite`（`IEEE003`）
+
+## 规则扩展方式
+
+当前规则按模板分文件组织：
+
+- `paperfmt/core/rules/ieee_conf.py`：`ieee-conf` 全部规则
+- `paperfmt/core/rules/__init__.py`：模板到规则集的汇总注册
+
+新增模板建议流程：
+1. 新建 `paperfmt/core/rules/<template>.py`
+2. 在 `paperfmt/core/rules/__init__.py` 注册
+3. 在 `paperfmt/core/registry.py` 增加模板标识
