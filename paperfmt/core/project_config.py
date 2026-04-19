@@ -11,6 +11,7 @@ except ModuleNotFoundError:  # pragma: no cover
 
 from paperfmt.core.models import RuleOverride
 from paperfmt.core.registry import DEFAULT_TEMPLATE, normalize_template
+from paperfmt.core.rules import get_template_rule_defaults
 
 
 @dataclass(slots=True)
@@ -23,10 +24,7 @@ class ProjectConfig:
 
 
 def _default_rule_severities() -> Iterable[tuple[str, str]]:
-    # Local import avoids module-level circular dependency.
-    from paperfmt.core.checker import get_rule_defaults
-
-    return get_rule_defaults().items()
+    return get_template_rule_defaults().items()
 
 
 def default_config_text(template: str = DEFAULT_TEMPLATE) -> str:
