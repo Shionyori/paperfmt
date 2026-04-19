@@ -29,3 +29,6 @@ include-package-data = true
 
 [tool.setuptools.packages.find]
 include = ["paperfmt*"]
+
+[tool.setuptools.package-data]
+paperfmt = ["assets/templates/**/*.tmpl", "assets/templates/**/*.bib"]

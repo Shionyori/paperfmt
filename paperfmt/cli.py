@@ -21,10 +21,20 @@ def main() -> None:
 @click.option("--template", "template_name", required=True, type=click.Choice(supported_templates()), help="Template name")
 @click.option("--out", "output_dir", default=".", type=click.Path(file_okay=False, path_type=Path), help="Output directory")
 @click.option("--force", is_flag=True, default=False, help="Overwrite existing files")
-def init_command(template_name: str, output_dir: Path, force: bool) -> None:
+@click.option("--title", default="Paper Title", show_default=True, help="Paper title used in generated main.tex")
+@click.option("--anonymous/--named", default=True, show_default=True, help="Generate anonymous or named author block")
+@click.option("--author", "authors", multiple=True, help="Author name (repeatable, only used with --named)")
+def init_command(template_name: str, output_dir: Path, force: bool, title: str, anonymous: bool, authors: tuple[str, ...]) -> None:
     """Initialize a starter project for a paper template."""
     try:
-        created_files = create_project_scaffold(template=template_name, output_dir=output_dir, force=force)
+        created_files = create_project_scaffold(
+            template=template_name,
+            output_dir=output_dir,
+            force=force,
+            title=title,
+            anonymous=anonymous,
+            authors=authors,
+        )
     except (ValueError, FileExistsError) as exc:
         raise click.ClickException(str(exc)) from exc
 
@@ -63,6 +73,8 @@ def check_command(tex_file: Path, template_name: str, output_format: str, strict
 
     if output_format == "json":
         payload = {
+            "schema_version": "1.0",
+            "template": template_name,
             "input_file": str(report.input_file),
             "summary": {
                 "total": len(report.diagnostics),

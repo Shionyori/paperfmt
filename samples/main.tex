@@ -1,25 +1,81 @@
-\documentclass[conference]{IEEEtran}
+\documentclass{article} % [paperfmt] 目标期刊要求 IEEEtran 或 acmart
 \usepackage{graphicx}
-\usepackage{cite}
-
-\title{Paperfmt Sample}
-\author{Anonymous Author(s)}
+\usepackage{amsmath, amssymb}
+\usepackage{algorithm, algpseudocode}
 
 \begin{document}
+
+\title{A Lightweight Framework for Real-Time Object Detection in Edge Devices}
+\author{Zhang Wei\thanks{Corresponding author. Email: wei.zhang@univ.edu} \and Li Ming \and Wang Fang} % [paperfmt] 双盲期未匿名
 \maketitle
 
 \begin{abstract}
-This is a sample file for paperfmt check and fix workflow.
+Edge computing devices require efficient object detection models. We propose LightDet, a novel architecture that reduces computational cost by 40\% while maintaining accuracy. Experiments on COCO and custom datasets show state-of-the-art performance.
 \end{abstract}
 
-\begin{IEEEkeywords}
-paperfmt, ieee, checking
-\end{IEEEkeywords}
-
 \section{Introduction}
-This project demonstrates template compliance checks.
+Object detection has achieved remarkable success in recent years [1]. However, deploying these models on edge devices remains challenging due to limited computational resources. As shown in Fig. \ref{fig:arch}, our proposed pipeline addresses this gap.
+In this paper, we make three main contributions: (1) a lightweight backbone, (2) an efficient neck module, and (3) a novel loss function. Eq. (1) demonstrates the core formulation.
+\begin{equation}
+\mathcal{L}_{total} = \lambda_1 \mathcal{L}_{cls} + \lambda_2 \mathcal{L}_{box} \label{eq:loss}
+\end{equation}
+We compare our method with recent baselines in Table 1. % [paperfmt] 硬编码 Table 1，未用 \ref
 
-\bibliographystyle{IEEEtran}
-\bibliography{refs}
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=0.9\textwidth]{figs/pipeline.pdf}
+\caption{The overall architecture of LightDet. It consists of three main stages.}
+\label{fig:arch}
+\end{figure}
 
+\begin{table}[htbp]
+\centering
+\caption{Comparison with state-of-the-art methods on COCO val2017.} % [paperfmt] 若目标为IEEE，表注应在表上(正确)，但表格未用booktabs
+\begin{tabular}{l c c c}
+\hline
+Method & mAP & Params (M) & FPS \\
+\hline
+YOLOv5s & 37.4 & 7.2 & 140 \\
+YOLOv8n & 37.3 & 3.2 & 152 \\
+Ours & \textbf{38.1} & 2.8 & \textbf{165} \\
+\hline
+\end{tabular}
+\label{tab:results}
+\end{table}
+
+\section{Method}
+Our approach builds upon the transformer-based paradigm. The attention mechanism is defined as:
+\[
+\text{Attention}(Q, K, V) = \text{softmax}\left(\frac{QK^T}{\sqrt{d_k}}\right)V
+\]
+To reduce redundancy, we introduce a spatial pruning module. As mentioned in Eq. (1), the loss function guides the optimization process. We implement the algorithm as follows:
+
+\begin{algorithm}
+\caption{LightDet Training Procedure}
+\begin{algorithmic}[1]
+\Require Dataset $\mathcal{D}$, epochs $E$, learning rate $\eta$
+\Ensure Trained model weights $\theta$
+\State Initialize $\theta$ with pretrained backbone
+\For{epoch $e = 1$ to $E$}
+    \State Sample batch $\mathcal{B} \sim \mathcal{D}$
+    \State Compute $\mathcal{L}_{total}$ via Eq. (1)
+    \State Update $\theta \leftarrow \theta - \eta \nabla_\theta \mathcal{L}$
+\EndFor
+\end{algorithmic}
+\end{algorithm}
+
+\section{Experiments}
+We evaluate on the MS COCO dataset. All experiments use PyTorch 2.0 on a single RTX 4090. Table 1 summarizes the main results. Fig. \ref{fig:ablation} shows the ablation study.
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=0.85\textwidth]{figs/ablation.png} % [paperfmt] .png 可能 DPI 不足
+\caption{Ablation study on different components.}
+\label{fig:ablation}
+\end{figure}
+
+\section{Conclusion}
+We presented LightDet, a fast and accurate detector for edge devices. Future work will focus on quantization-aware training.
+
+\bibliographystyle{plain}
+\bibliography{references}
 \end{document}

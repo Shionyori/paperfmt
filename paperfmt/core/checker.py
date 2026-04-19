@@ -41,6 +41,10 @@ FIGURE_RE = re.compile(r"\\begin\{figure\*?\}(.*?)\\end\{figure\*?\}", re.DOTALL
 TABLE_RE = re.compile(r"\\begin\{table\*?\}(.*?)\\end\{table\*?\}", re.DOTALL)
 CITE_VARIANT_RE = re.compile(r"\\cite(?:t|p)\s*\{")
 CITE_VARIANT_WITH_BRACE_RE = re.compile(r"\\cite(?:t|p)(\s*\{)")
+AUTHOR_BLOCK_RE = re.compile(r"\\author\s*\{(.*?)\}", re.DOTALL)
+GENERIC_CITE_RE = re.compile(r"\\cite[a-zA-Z]*\s*\{([^}]*)\}")
+BIBLIOGRAPHY_RE = re.compile(r"\\bibliography\s*\{([^}]*)\}")
+DOI_FIELD_RE = re.compile(r"^\s*doi\s*=", re.IGNORECASE | re.MULTILINE)
 
 
 def _line_of_offset(text: str, offset: int) -> int:
@@ -126,6 +130,94 @@ def _check_required_sections(text: str) -> list[Diagnostic]:
     return diagnostics
 
 
+def _check_anonymization_leak(text: str) -> list[Diagnostic]:
+    diagnostics: list[Diagnostic] = []
+    for match in AUTHOR_BLOCK_RE.finditer(text):
+        author_text = match.group(1).strip()
+        normalized = author_text.lower()
+        if not author_text:
+            continue
+        if "anonymous" in normalized:
+            continue
+        if re.search(r"[a-z]", normalized):
+            diagnostics.append(
+                Diagnostic(
+                    rule_id="IEEE006",
+                    severity="warning",
+                    message="Possible anonymization leak in author block for double-blind submission.",
+                    line=_line_of_offset(text, match.start()),
+                )
+            )
+    return diagnostics
+
+
+def _extract_cited_keys(text: str) -> set[str]:
+    keys: set[str] = set()
+    for match in GENERIC_CITE_RE.finditer(text):
+        for key in match.group(1).split(","):
+            trimmed = key.strip()
+            if trimmed:
+                keys.add(trimmed)
+    return keys
+
+
+def _extract_bib_files(text: str, tex_file: Path) -> list[Path]:
+    paths: list[Path] = []
+    for match in BIBLIOGRAPHY_RE.finditer(text):
+        for name in match.group(1).split(","):
+            stem = name.strip()
+            if not stem:
+                continue
+            bib_name = stem if stem.endswith(".bib") else f"{stem}.bib"
+            paths.append((tex_file.parent / bib_name).resolve())
+    return paths
+
+
+def _parse_bib_doi_presence(bib_text: str) -> dict[str, bool]:
+    presence: dict[str, bool] = {}
+    starts = list(re.finditer(r"@[a-zA-Z]+\s*\{\s*([^,\s]+)\s*,", bib_text))
+    for i, start in enumerate(starts):
+        key = start.group(1).strip()
+        start_idx = start.start()
+        end_idx = starts[i + 1].start() if i + 1 < len(starts) else len(bib_text)
+        entry_block = bib_text[start_idx:end_idx]
+        presence[key] = bool(DOI_FIELD_RE.search(entry_block))
+    return presence
+
+
+def _check_missing_doi(text: str, tex_file: Path) -> list[Diagnostic]:
+    diagnostics: list[Diagnostic] = []
+    cited_keys = _extract_cited_keys(text)
+    if not cited_keys:
+        return diagnostics
+
+    bib_refs = list(BIBLIOGRAPHY_RE.finditer(text))
+    bib_files = _extract_bib_files(text, tex_file)
+    if not bib_refs or not bib_files:
+        return diagnostics
+
+    doi_presence: dict[str, bool] = {}
+    for bib_file in bib_files:
+        if not bib_file.exists():
+            continue
+        bib_text = bib_file.read_text(encoding="utf-8")
+        doi_presence.update(_parse_bib_doi_presence(bib_text))
+
+    line = _line_of_offset(text, bib_refs[0].start())
+    for key in sorted(cited_keys):
+        if key in doi_presence and not doi_presence[key]:
+            diagnostics.append(
+                Diagnostic(
+                    rule_id="IEEE007",
+                    severity="warning",
+                    message=f"Citation '{key}' is missing DOI in bibliography entry.",
+                    line=line,
+                )
+            )
+
+    return diagnostics
+
+
 def run_checks(tex_file: Path, template: str) -> CheckReport:
     if template != "ieee":
         raise ValueError(f"Unsupported template: {template}")
@@ -136,6 +228,8 @@ def run_checks(tex_file: Path, template: str) -> CheckReport:
     diagnostics.extend(_check_table_caption_order(text))
     diagnostics.extend(_check_citation_style(text))
     diagnostics.extend(_check_required_sections(text))
+    diagnostics.extend(_check_anonymization_leak(text))
+    diagnostics.extend(_check_missing_doi(text, tex_file))
     diagnostics.sort(key=lambda d: (d.line, d.rule_id))
     return CheckReport(input_file=tex_file, diagnostics=diagnostics)
 

@@ -29,6 +29,12 @@ pip install -e '.[dev]'
 paperfmt init --template ieee --out .
 ```
 
+Optional init flags:
+
+```bash
+paperfmt init --template ieee --named --author "Alice" --author "Bob" --title "My Paper"
+```
+
 3. Run checks anytime:
 
 ```bash
@@ -44,10 +50,12 @@ paperfmt fix main.tex --template ieee
 ## Commands
 
 ```bash
-paperfmt init --template ieee [--out DIR] [--force]
+paperfmt init --template ieee [--out DIR] [--force] [--title TEXT] [--anonymous|--named] [--author NAME]
 paperfmt check INPUT.tex [--template ieee] [--format text|json] [--strict]
 paperfmt fix INPUT.tex [--template ieee] [--dry-run] [--backup/--no-backup]
 ```
+
+Template assets are stored as external resource files under `paperfmt/assets/templates/`.
 
 ## Current built-in checks
 
