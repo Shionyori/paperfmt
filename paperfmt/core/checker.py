@@ -1,62 +1,13 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
 import re
 from pathlib import Path
+from typing import Callable
 
-from paperfmt.core.project_config import RuleOverride
+from dataclasses import dataclass
 
-
-@dataclass(slots=True)
-class Diagnostic:
-    rule_id: str
-    severity: str
-    message: str
-    line: int
-    can_fix: bool = False
-
-
-@dataclass(slots=True)
-class CheckReport:
-    input_file: Path
-    diagnostics: list[Diagnostic]
-
-    @property
-    def error_count(self) -> int:
-        return sum(1 for d in self.diagnostics if d.severity == "error")
-
-    @property
-    def warning_count(self) -> int:
-        return sum(1 for d in self.diagnostics if d.severity == "warning")
-
-
-@dataclass(slots=True)
-class FixReport:
-    input_file: Path
-    changed: bool
-    applied_fixes: list[str]
-    original_text: str
-    fixed_text: str
-
-
-@dataclass(slots=True)
-class RuleSet:
-    template: str
-    bibliography: str = "references.bib"
-    rules: dict[str, RuleOverride] | None = None
-
-    def is_enabled(self, rule_id: str) -> bool:
-        if not self.rules or rule_id not in self.rules:
-            return True
-        return self.rules[rule_id].enabled
-
-    def resolve_severity(self, rule_id: str, default: str) -> str:
-        if not self.rules or rule_id not in self.rules:
-            return default
-        override = self.rules[rule_id].severity
-        if override in {"error", "warning", "info"}:
-            return override
-        return default
+from paperfmt.core.models import CheckReport, Diagnostic, FixReport, RuleOverride, RuleSet
+from paperfmt.core.registry import is_supported_template, normalize_template
 
 
 FIGURE_RE = re.compile(r"\\begin\{figure\*?\}(.*?)\\end\{figure\*?\}", re.DOTALL)
@@ -65,7 +16,6 @@ CITE_VARIANT_RE = re.compile(r"\\cite(?:t|p)\s*\{")
 CITE_VARIANT_WITH_BRACE_RE = re.compile(r"\\cite(?:t|p)(\s*\{)")
 AUTHOR_BLOCK_RE = re.compile(r"\\author\s*\{(.*?)\}", re.DOTALL)
 GENERIC_CITE_RE = re.compile(r"\\cite[a-zA-Z]*\s*\{([^}]*)\}")
-BIBLIOGRAPHY_RE = re.compile(r"\\bibliography\s*\{([^}]*)\}")
 DOI_FIELD_RE = re.compile(r"^\s*doi\s*=", re.IGNORECASE | re.MULTILINE)
 
 
@@ -183,18 +133,6 @@ def _extract_cited_keys(text: str) -> set[str]:
     return keys
 
 
-def _extract_bib_files(text: str, tex_file: Path) -> list[Path]:
-    paths: list[Path] = []
-    for match in BIBLIOGRAPHY_RE.finditer(text):
-        for name in match.group(1).split(","):
-            stem = name.strip()
-            if not stem:
-                continue
-            bib_name = stem if stem.endswith(".bib") else f"{stem}.bib"
-            paths.append((tex_file.parent / bib_name).resolve())
-    return paths
-
-
 def _parse_bib_doi_presence(bib_text: str) -> dict[str, bool]:
     presence: dict[str, bool] = {}
     starts = list(re.finditer(r"@[a-zA-Z]+\s*\{\s*([^,\s]+)\s*,", bib_text))
@@ -205,39 +143,6 @@ def _parse_bib_doi_presence(bib_text: str) -> dict[str, bool]:
         entry_block = bib_text[start_idx:end_idx]
         presence[key] = bool(DOI_FIELD_RE.search(entry_block))
     return presence
-
-
-def _check_missing_doi(text: str, tex_file: Path) -> list[Diagnostic]:
-    diagnostics: list[Diagnostic] = []
-    cited_keys = _extract_cited_keys(text)
-    if not cited_keys:
-        return diagnostics
-
-    bib_refs = list(BIBLIOGRAPHY_RE.finditer(text))
-    bib_files = _extract_bib_files(text, tex_file)
-    if not bib_refs or not bib_files:
-        return diagnostics
-
-    doi_presence: dict[str, bool] = {}
-    for bib_file in bib_files:
-        if not bib_file.exists():
-            continue
-        bib_text = bib_file.read_text(encoding="utf-8")
-        doi_presence.update(_parse_bib_doi_presence(bib_text))
-
-    line = _line_of_offset(text, bib_refs[0].start())
-    for key in sorted(cited_keys):
-        if key in doi_presence and not doi_presence[key]:
-            diagnostics.append(
-                Diagnostic(
-                    rule_id="IEEE007",
-                    severity="warning",
-                    message=f"Citation '{key}' is missing DOI in bibliography entry.",
-                    line=line,
-                )
-            )
-
-    return diagnostics
 
 
 def _check_missing_doi_from_config(text: str, tex_file: Path, bibliography: str) -> list[Diagnostic]:
@@ -266,15 +171,15 @@ def _check_missing_doi_from_config(text: str, tex_file: Path, bibliography: str)
 
 
 def default_ruleset(template: str = "ieee-conf", bibliography: str = "references.bib", rules: dict[str, RuleOverride] | None = None) -> RuleSet:
-    return RuleSet(template=template, bibliography=bibliography, rules=rules or {})
+    return RuleSet(template=normalize_template(template), bibliography=bibliography, rules=rules or {})
 
 
 @dataclass(slots=True)
 class RulePlugin:
     rule_id: str
     default_severity: str
-    check: callable
-    fix: callable | None = None
+    check: Callable[[str, Path, RuleSet], list[Diagnostic]]
+    fix: Callable[[str], tuple[str, bool]] | None = None
 
 
 def _fix_rule_001(text: str) -> tuple[str, bool]:
@@ -321,11 +226,16 @@ RULE_PLUGINS: tuple[RulePlugin, ...] = (
 )
 
 
+def get_rule_defaults() -> dict[str, str]:
+    return {plugin.rule_id: plugin.default_severity for plugin in RULE_PLUGINS}
+
+
 def run_checks(tex_file: Path, template: str, ruleset: RuleSet | None = None) -> CheckReport:
-    if template not in {"ieee", "ieee-conf"}:
+    normalized_template = normalize_template(template)
+    if not is_supported_template(normalized_template):
         raise ValueError(f"Unsupported template: {template}")
 
-    active_ruleset = ruleset or default_ruleset(template=template)
+    active_ruleset = ruleset or default_ruleset(template=normalized_template)
     text = tex_file.read_text(encoding="utf-8")
     diagnostics: list[Diagnostic] = []
 
@@ -374,10 +284,11 @@ def _fix_caption_order_for_environment(block: str, is_figure: bool) -> tuple[str
 
 
 def apply_safe_fixes(tex_file: Path, template: str, ruleset: RuleSet | None = None) -> FixReport:
-    if template not in {"ieee", "ieee-conf"}:
+    normalized_template = normalize_template(template)
+    if not is_supported_template(normalized_template):
         raise ValueError(f"Unsupported template: {template}")
 
-    active_ruleset = ruleset or default_ruleset(template=template)
+    active_ruleset = ruleset or default_ruleset(template=normalized_template)
     original_text = tex_file.read_text(encoding="utf-8")
     updated_text = original_text
     applied_fixes: list[str] = []

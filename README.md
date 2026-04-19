@@ -43,13 +43,13 @@ my-paper/
 3. Run checks anytime:
 
 ```bash
-paperfmt check main.tex --template ieee
+paperfmt check main.tex --template ieee-conf
 ```
 
 4. Apply safe fixes:
 
 ```bash
-paperfmt fix main.tex --template ieee
+paperfmt fix main.tex --template ieee-conf
 ```
 
 ## Commands

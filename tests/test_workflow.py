@@ -191,3 +191,11 @@ def test_init_adopts_existing_project_without_overwrite() -> None:
         assert Path(".paperfmt/report.txt").exists()
         assert Path(".paperfmt/backup/main.tex.bak").exists()
         assert Path("main.tex").read_text(encoding="utf-8") == original
+
+
+def test_init_rejects_removed_template_alias() -> None:
+    runner = CliRunner()
+    with runner.isolated_filesystem():
+        result = runner.invoke(main, ["init", "--template", "ieee"])
+        assert result.exit_code != 0
+        assert "invalid value for '--template'" in result.output.lower()

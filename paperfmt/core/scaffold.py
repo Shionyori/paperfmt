@@ -4,13 +4,11 @@ import shutil
 from pathlib import Path
 
 from paperfmt.core.project_config import write_default_config
-
-
-SUPPORTED_TEMPLATES = ("ieee-conf", "ieee")
+from paperfmt.core.registry import is_supported_template, normalize_template, supported_templates as registry_supported_templates
 
 
 def supported_templates() -> tuple[str, ...]:
-    return SUPPORTED_TEMPLATES
+    return registry_supported_templates()
 
 
 def create_project_scaffold(
@@ -18,8 +16,8 @@ def create_project_scaffold(
     output_dir: Path,
     force: bool = False,
 ) -> list[Path]:
-    resolved_template = "ieee-conf" if template == "ieee" else template
-    if resolved_template not in SUPPORTED_TEMPLATES:
+    resolved_template = normalize_template(template)
+    if not is_supported_template(resolved_template):
         raise ValueError(f"Unsupported template: {template}")
 
     output_dir.mkdir(parents=True, exist_ok=True)

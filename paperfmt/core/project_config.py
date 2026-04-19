@@ -2,64 +2,54 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any
+from typing import Iterable
 
 try:
     import tomllib  # type: ignore[attr-defined]
 except ModuleNotFoundError:  # pragma: no cover
     import tomli as tomllib  # type: ignore[no-redef]
 
-
-@dataclass(slots=True)
-class RuleOverride:
-    enabled: bool = True
-    severity: str | None = None
+from paperfmt.core.models import RuleOverride
+from paperfmt.core.registry import DEFAULT_TEMPLATE, normalize_template
 
 
 @dataclass(slots=True)
 class ProjectConfig:
-    template: str = "ieee-conf"
+    template: str = DEFAULT_TEMPLATE
     main_tex: str = "main.tex"
     bibliography: str = "references.bib"
     state_dir: str = ".paperfmt"
     rules: dict[str, RuleOverride] | None = None
 
 
-def default_config_text(template: str = "ieee-conf") -> str:
-    return f"""[paperfmt]
-template = "{template}"
-main_tex = "main.tex"
-bibliography = "references.bib"
-state_dir = ".paperfmt"
+def _default_rule_severities() -> Iterable[tuple[str, str]]:
+    # Local import avoids module-level circular dependency.
+    from paperfmt.core.checker import get_rule_defaults
 
-[rules.IEEE001]
-enabled = true
-severity = "warning"
+    return get_rule_defaults().items()
 
-[rules.IEEE002]
-enabled = true
-severity = "warning"
 
-[rules.IEEE003]
-enabled = true
-severity = "warning"
+def default_config_text(template: str = DEFAULT_TEMPLATE) -> str:
+    lines = [
+        "[paperfmt]",
+        f'template = "{normalize_template(template)}"',
+        'main_tex = "main.tex"',
+        'bibliography = "references.bib"',
+        'state_dir = ".paperfmt"',
+        "",
+    ]
 
-[rules.IEEE004]
-enabled = true
-severity = "error"
+    for rule_id, severity in _default_rule_severities():
+        lines.extend(
+            [
+                f"[rules.{rule_id}]",
+                "enabled = true",
+                f'severity = "{severity}"',
+                "",
+            ]
+        )
 
-[rules.IEEE005]
-enabled = true
-severity = "warning"
-
-[rules.IEEE006]
-enabled = true
-severity = "warning"
-
-[rules.IEEE007]
-enabled = true
-severity = "warning"
-"""
+    return "\n".join(lines).rstrip() + "\n"
 
 
 def load_project_config(config_path: Path) -> ProjectConfig:
@@ -81,7 +71,7 @@ def load_project_config(config_path: Path) -> ProjectConfig:
             )
 
     return ProjectConfig(
-        template=str(paperfmt.get("template", "ieee-conf")),
+        template=normalize_template(str(paperfmt.get("template", DEFAULT_TEMPLATE))),
         main_tex=str(paperfmt.get("main_tex", "main.tex")),
         bibliography=str(paperfmt.get("bibliography", "references.bib")),
         state_dir=str(paperfmt.get("state_dir", ".paperfmt")),
