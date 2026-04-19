@@ -43,43 +43,33 @@ A
 def test_init_creates_files() -> None:
     runner = CliRunner()
     with runner.isolated_filesystem():
-        result = runner.invoke(main, ["init", "--template", "ieee"])
+        result = runner.invoke(main, ["init", "--template", "ieee-conf"])
         assert result.exit_code == 0
-        assert Path("main.tex").exists()
-        assert Path("refs.bib").exists()
+        assert Path("paperfmt.toml").exists()
+        assert Path(".paperfmt/report.txt").exists()
+        assert Path("main.tex").exists() is False
+        assert Path("references.bib").exists() is False
 
 
-def test_init_named_authors_and_title() -> None:
+def test_init_keeps_existing_tex_and_creates_backup() -> None:
     runner = CliRunner()
     with runner.isolated_filesystem():
-        result = runner.invoke(
-            main,
-            [
-                "init",
-                "--template",
-                "ieee",
-                "--named",
-                "--title",
-                "My Paper",
-                "--author",
-                "Alice",
-                "--author",
-                "Bob",
-            ],
-        )
+        original = "\\documentclass{article}\n\\begin{document}\nHello\n\\end{document}\n"
+        Path("main.tex").write_text(original, encoding="utf-8")
+
+        result = runner.invoke(main, ["init", "--template", "ieee-conf"])
         assert result.exit_code == 0
-        main_tex = Path("main.tex").read_text(encoding="utf-8")
-        assert "\\title{My Paper}" in main_tex
-        assert "\\\\title{My Paper}" not in main_tex
-        assert "\\author{Alice \\and Bob}" in main_tex
+        assert Path("main.tex").read_text(encoding="utf-8") == original
+        assert Path(".paperfmt/backup/main.tex.bak").exists()
 
 
 def test_check_reports_findings() -> None:
     runner = CliRunner()
     with runner.isolated_filesystem():
+        runner.invoke(main, ["init", "--template", "ieee-conf"])
         Path("main.tex").write_text(_problematic_tex(), encoding="utf-8")
 
-        result = runner.invoke(main, ["check", "main.tex", "--template", "ieee"])
+        result = runner.invoke(main, ["check"])
         assert result.exit_code == 0
         assert "IEEE001" in result.output
         assert "IEEE002" in result.output
@@ -89,20 +79,22 @@ def test_check_reports_findings() -> None:
 def test_check_json_includes_schema_and_template() -> None:
     runner = CliRunner()
     with runner.isolated_filesystem():
+        runner.invoke(main, ["init", "--template", "ieee-conf"])
         Path("main.tex").write_text(_problematic_tex(), encoding="utf-8")
 
-        result = runner.invoke(main, ["check", "main.tex", "--template", "ieee", "--format", "json"])
+        result = runner.invoke(main, ["check", "--format", "json"])
         assert result.exit_code == 0
         payload = json.loads(result.output)
         assert payload["schema_version"] == "1.0"
-        assert payload["template"] == "ieee"
+        assert payload["template"] == "ieee-conf"
 
 
 def test_check_reports_anonymization_and_missing_doi() -> None:
     runner = CliRunner()
     with runner.isolated_filesystem():
+        runner.invoke(main, ["init", "--template", "ieee-conf"])
         tex = Path("main.tex")
-        bib = Path("refs.bib")
+        bib = Path("references.bib")
 
         tex.write_text(
             """\\documentclass[conference]{IEEEtran}
@@ -117,7 +109,7 @@ Demo abstract.
 paperfmt
 \\end{IEEEkeywords}
 See \\cite{a1}.
-\\bibliography{refs}
+\\bibliography{references}
 \\end{document}
 """,
             encoding="utf-8",
@@ -133,7 +125,7 @@ See \\cite{a1}.
             encoding="utf-8",
         )
 
-        result = runner.invoke(main, ["check", "main.tex", "--template", "ieee"])
+        result = runner.invoke(main, ["check"])
         assert result.exit_code == 0
         assert "IEEE006" in result.output
         assert "IEEE007" in result.output
@@ -142,11 +134,12 @@ See \\cite{a1}.
 def test_fix_dry_run_does_not_write_file() -> None:
     runner = CliRunner()
     with runner.isolated_filesystem():
+        runner.invoke(main, ["init", "--template", "ieee-conf"])
         tex = Path("main.tex")
         original = _problematic_tex()
         tex.write_text(original, encoding="utf-8")
 
-        result = runner.invoke(main, ["fix", "main.tex", "--template", "ieee", "--dry-run"])
+        result = runner.invoke(main, ["fix", "--dry-run"])
         assert result.exit_code == 0
         assert "Dry run only" in result.output
         assert tex.read_text(encoding="utf-8") == original
@@ -155,13 +148,46 @@ def test_fix_dry_run_does_not_write_file() -> None:
 def test_fix_applies_changes_and_backup() -> None:
     runner = CliRunner()
     with runner.isolated_filesystem():
+        runner.invoke(main, ["init", "--template", "ieee-conf"])
         tex = Path("main.tex")
         tex.write_text(_problematic_tex(), encoding="utf-8")
 
-        result = runner.invoke(main, ["fix", "main.tex", "--template", "ieee"])
+        result = runner.invoke(main, ["fix"])
         assert result.exit_code == 0
-        assert Path("main.tex.bak").exists()
+        assert Path(".paperfmt/backup/main.tex.bak").exists()
 
         updated = tex.read_text(encoding="utf-8")
         assert "\\citep{" not in updated
         assert "\\cite{" in updated
+
+
+def test_ruleset_can_disable_rule() -> None:
+    runner = CliRunner()
+    with runner.isolated_filesystem():
+        runner.invoke(main, ["init", "--template", "ieee-conf"])
+        Path("main.tex").write_text(_problematic_tex(), encoding="utf-8")
+        Path("paperfmt.toml").write_text(
+            Path("paperfmt.toml").read_text(encoding="utf-8").replace(
+                "[rules.IEEE003]\nenabled = true",
+                "[rules.IEEE003]\nenabled = false",
+            ),
+            encoding="utf-8",
+        )
+
+        result = runner.invoke(main, ["check"])
+        assert result.exit_code == 0
+        assert "IEEE003" not in result.output
+
+
+def test_init_adopts_existing_project_without_overwrite() -> None:
+    runner = CliRunner()
+    with runner.isolated_filesystem():
+        original = "\\documentclass{article}\n\\begin{document}\nHello\n\\end{document}\n"
+        Path("main.tex").write_text(original, encoding="utf-8")
+
+        result = runner.invoke(main, ["init", "--template", "ieee-conf"])
+        assert result.exit_code == 0
+        assert Path("paperfmt.toml").exists()
+        assert Path(".paperfmt/report.txt").exists()
+        assert Path(".paperfmt/backup/main.tex.bak").exists()
+        assert Path("main.tex").read_text(encoding="utf-8") == original

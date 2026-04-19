@@ -4,6 +4,8 @@ from dataclasses import dataclass
 import re
 from pathlib import Path
 
+from paperfmt.core.project_config import RuleOverride
+
 
 @dataclass(slots=True)
 class Diagnostic:
@@ -35,6 +37,26 @@ class FixReport:
     applied_fixes: list[str]
     original_text: str
     fixed_text: str
+
+
+@dataclass(slots=True)
+class RuleSet:
+    template: str
+    bibliography: str = "references.bib"
+    rules: dict[str, RuleOverride] | None = None
+
+    def is_enabled(self, rule_id: str) -> bool:
+        if not self.rules or rule_id not in self.rules:
+            return True
+        return self.rules[rule_id].enabled
+
+    def resolve_severity(self, rule_id: str, default: str) -> str:
+        if not self.rules or rule_id not in self.rules:
+            return default
+        override = self.rules[rule_id].severity
+        if override in {"error", "warning", "info"}:
+            return override
+        return default
 
 
 FIGURE_RE = re.compile(r"\\begin\{figure\*?\}(.*?)\\end\{figure\*?\}", re.DOTALL)
@@ -218,18 +240,111 @@ def _check_missing_doi(text: str, tex_file: Path) -> list[Diagnostic]:
     return diagnostics
 
 
-def run_checks(tex_file: Path, template: str) -> CheckReport:
-    if template != "ieee":
+def _check_missing_doi_from_config(text: str, tex_file: Path, bibliography: str) -> list[Diagnostic]:
+    diagnostics: list[Diagnostic] = []
+    cited_keys = _extract_cited_keys(text)
+    if not cited_keys:
+        return diagnostics
+
+    bib_file = (tex_file.parent / bibliography).resolve()
+    if not bib_file.exists():
+        return diagnostics
+
+    doi_presence = _parse_bib_doi_presence(bib_file.read_text(encoding="utf-8"))
+    line = 1
+    for key in sorted(cited_keys):
+        if key in doi_presence and not doi_presence[key]:
+            diagnostics.append(
+                Diagnostic(
+                    rule_id="IEEE007",
+                    severity="warning",
+                    message=f"Citation '{key}' is missing DOI in bibliography entry.",
+                    line=line,
+                )
+            )
+    return diagnostics
+
+
+def default_ruleset(template: str = "ieee-conf", bibliography: str = "references.bib", rules: dict[str, RuleOverride] | None = None) -> RuleSet:
+    return RuleSet(template=template, bibliography=bibliography, rules=rules or {})
+
+
+@dataclass(slots=True)
+class RulePlugin:
+    rule_id: str
+    default_severity: str
+    check: callable
+    fix: callable | None = None
+
+
+def _fix_rule_001(text: str) -> tuple[str, bool]:
+    changed_any = False
+
+    def fix_figure(match: re.Match[str]) -> str:
+        nonlocal changed_any
+        block = match.group(1)
+        new_block, changed = _fix_caption_order_for_environment(block, is_figure=True)
+        if changed:
+            changed_any = True
+        return match.group(0).replace(block, new_block)
+
+    return FIGURE_RE.sub(fix_figure, text), changed_any
+
+
+def _fix_rule_002(text: str) -> tuple[str, bool]:
+    changed_any = False
+
+    def fix_table(match: re.Match[str]) -> str:
+        nonlocal changed_any
+        block = match.group(1)
+        new_block, changed = _fix_caption_order_for_environment(block, is_figure=False)
+        if changed:
+            changed_any = True
+        return match.group(0).replace(block, new_block)
+
+    return TABLE_RE.sub(fix_table, text), changed_any
+
+
+def _fix_rule_003(text: str) -> tuple[str, bool]:
+    updated = CITE_VARIANT_WITH_BRACE_RE.sub(r"\\cite\1", text)
+    return updated, updated != text
+
+
+RULE_PLUGINS: tuple[RulePlugin, ...] = (
+    RulePlugin("IEEE001", "warning", lambda text, tex_file, ruleset: _check_figure_caption_order(text), _fix_rule_001),
+    RulePlugin("IEEE002", "warning", lambda text, tex_file, ruleset: _check_table_caption_order(text), _fix_rule_002),
+    RulePlugin("IEEE003", "warning", lambda text, tex_file, ruleset: _check_citation_style(text), _fix_rule_003),
+    RulePlugin("IEEE004", "error", lambda text, tex_file, ruleset: [d for d in _check_required_sections(text) if d.rule_id == "IEEE004"]),
+    RulePlugin("IEEE005", "warning", lambda text, tex_file, ruleset: [d for d in _check_required_sections(text) if d.rule_id == "IEEE005"]),
+    RulePlugin("IEEE006", "warning", lambda text, tex_file, ruleset: _check_anonymization_leak(text)),
+    RulePlugin("IEEE007", "warning", lambda text, tex_file, ruleset: _check_missing_doi_from_config(text, tex_file, ruleset.bibliography)),
+)
+
+
+def run_checks(tex_file: Path, template: str, ruleset: RuleSet | None = None) -> CheckReport:
+    if template not in {"ieee", "ieee-conf"}:
         raise ValueError(f"Unsupported template: {template}")
 
+    active_ruleset = ruleset or default_ruleset(template=template)
     text = tex_file.read_text(encoding="utf-8")
     diagnostics: list[Diagnostic] = []
-    diagnostics.extend(_check_figure_caption_order(text))
-    diagnostics.extend(_check_table_caption_order(text))
-    diagnostics.extend(_check_citation_style(text))
-    diagnostics.extend(_check_required_sections(text))
-    diagnostics.extend(_check_anonymization_leak(text))
-    diagnostics.extend(_check_missing_doi(text, tex_file))
+
+    for plugin in RULE_PLUGINS:
+        if not active_ruleset.is_enabled(plugin.rule_id):
+            continue
+        rule_diagnostics = plugin.check(text, tex_file, active_ruleset)
+        resolved = active_ruleset.resolve_severity(plugin.rule_id, plugin.default_severity)
+        for item in rule_diagnostics:
+            diagnostics.append(
+                Diagnostic(
+                    rule_id=item.rule_id,
+                    severity=resolved,
+                    message=item.message,
+                    line=item.line,
+                    can_fix=item.can_fix,
+                )
+            )
+
     diagnostics.sort(key=lambda d: (d.line, d.rule_id))
     return CheckReport(input_file=tex_file, diagnostics=diagnostics)
 
@@ -258,38 +373,23 @@ def _fix_caption_order_for_environment(block: str, is_figure: bool) -> tuple[str
     return "\n".join(lines), True
 
 
-def apply_safe_fixes(tex_file: Path, template: str) -> FixReport:
-    if template != "ieee":
+def apply_safe_fixes(tex_file: Path, template: str, ruleset: RuleSet | None = None) -> FixReport:
+    if template not in {"ieee", "ieee-conf"}:
         raise ValueError(f"Unsupported template: {template}")
 
+    active_ruleset = ruleset or default_ruleset(template=template)
     original_text = tex_file.read_text(encoding="utf-8")
     updated_text = original_text
     applied_fixes: list[str] = []
 
-    def fix_figure(match: re.Match[str]) -> str:
-        nonlocal applied_fixes
-        block = match.group(1)
-        new_block, changed = _fix_caption_order_for_environment(block, is_figure=True)
+    for plugin in RULE_PLUGINS:
+        if plugin.fix is None:
+            continue
+        if not active_ruleset.is_enabled(plugin.rule_id):
+            continue
+        updated_text, changed = plugin.fix(updated_text)
         if changed:
-            applied_fixes.append("IEEE001")
-        return match.group(0).replace(block, new_block)
-
-    updated_text = FIGURE_RE.sub(fix_figure, updated_text)
-
-    def fix_table(match: re.Match[str]) -> str:
-        nonlocal applied_fixes
-        block = match.group(1)
-        new_block, changed = _fix_caption_order_for_environment(block, is_figure=False)
-        if changed:
-            applied_fixes.append("IEEE002")
-        return match.group(0).replace(block, new_block)
-
-    updated_text = TABLE_RE.sub(fix_table, updated_text)
-
-    cite_changed = CITE_VARIANT_WITH_BRACE_RE.sub(r"\\cite\1", updated_text)
-    if cite_changed != updated_text:
-        applied_fixes.append("IEEE003")
-        updated_text = cite_changed
+            applied_fixes.append(plugin.rule_id)
 
     return FixReport(
         input_file=tex_file,

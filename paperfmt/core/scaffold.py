@@ -1,69 +1,55 @@
 from __future__ import annotations
 
-from importlib.resources import files
+import shutil
 from pathlib import Path
 
+from paperfmt.core.project_config import write_default_config
 
-TEMPLATE_REGISTRY: dict[str, dict[str, str]] = {
-    "ieee": {
-        "main.tex": "templates/ieee/main.tex.tmpl",
-        "refs.bib": "templates/ieee/refs.bib",
-    }
-}
+
+SUPPORTED_TEMPLATES = ("ieee-conf", "ieee")
 
 
 def supported_templates() -> tuple[str, ...]:
-    return tuple(TEMPLATE_REGISTRY.keys())
-
-
-def _read_asset(relative_path: str) -> str:
-    asset_path = files("paperfmt") / "assets" / relative_path
-    return asset_path.read_text(encoding="utf-8")
-
-
-def _render_main_tex(template_text: str, title: str, anonymous: bool, authors: tuple[str, ...]) -> str:
-    author_line = "Anonymous Author(s)"
-    if not anonymous:
-        filtered = [a.strip() for a in authors if a.strip()]
-        author_line = " \\and ".join(filtered) if filtered else "First Author \\and Second Author"
-
-    rendered = template_text.replace("__TITLE__", title.strip() or "Paper Title")
-    rendered = rendered.replace("__AUTHOR_LINE__", author_line)
-    return rendered
+    return SUPPORTED_TEMPLATES
 
 
 def create_project_scaffold(
     template: str,
     output_dir: Path,
     force: bool = False,
-    title: str = "Paper Title",
-    anonymous: bool = True,
-    authors: tuple[str, ...] = (),
 ) -> list[Path]:
-    if template not in TEMPLATE_REGISTRY:
+    resolved_template = "ieee-conf" if template == "ieee" else template
+    if resolved_template not in SUPPORTED_TEMPLATES:
         raise ValueError(f"Unsupported template: {template}")
 
     output_dir.mkdir(parents=True, exist_ok=True)
 
-    template_files = TEMPLATE_REGISTRY[template]
-    main_tex = _render_main_tex(
-        template_text=_read_asset(template_files["main.tex"]),
-        title=title,
-        anonymous=anonymous,
-        authors=authors,
-    )
-    refs_bib = _read_asset(template_files["refs.bib"])
+    state_dir = output_dir / ".paperfmt"
+    backup_dir = state_dir / "backup"
+    report_file = state_dir / "report.txt"
+    config_file = output_dir / "paperfmt.toml"
 
-    files = {
-        output_dir / "main.tex": main_tex,
-        output_dir / "refs.bib": refs_bib,
-    }
+    files = {config_file: "", report_file: ""}
 
     created: list[Path] = []
+    backup_dir.mkdir(parents=True, exist_ok=True)
+
     for path, content in files.items():
         if path.exists() and not force:
-            raise FileExistsError(f"Refusing to overwrite existing file: {path}")
-        path.write_text(content, encoding="utf-8")
+            continue
+
+        if path == config_file:
+            write_default_config(path, template=resolved_template)
+        elif path == report_file:
+            path.write_text("[paperfmt] init completed\n", encoding="utf-8")
+        else:
+            path.write_text(content, encoding="utf-8")
         created.append(path)
+
+    backup_path = backup_dir / "main.tex.bak"
+    main_tex_path = output_dir / "main.tex"
+    if main_tex_path.exists() and (force or not backup_path.exists()):
+        shutil.copy2(main_tex_path, backup_path)
+        created.append(backup_path)
 
     return created
