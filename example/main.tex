@@ -1,0 +1,70 @@
+% [paperfmt] 演示文件：故意包含常见格式/规范问题，用于测试 check/fix
+\documentclass{article} % 实际投稿应改为 \documentclass[conference]{IEEEtran}
+\usepackage{graphicx}
+\usepackage{amsmath}
+\usepackage{algorithm, algpseudocode}
+\usepackage{booktabs} % 已加载但未在表格中使用
+
+\begin{document}
+
+\title{DemoPaper: A Lightweight Framework for Edge AI}
+\author{Alice Smith\thanks{Corresponding author. Email: alice.smith@univ.edu} \and Bob Jones} % [paperfmt] 双盲期应匿名
+\maketitle
+
+\begin{abstract}
+This is a demonstration abstract. It contains placeholder text to simulate a real academic paper structure for testing the paperfmt tool.
+\end{abstract}
+
+\section{Introduction}
+Recent advances in edge computing [1] have enabled real-time inference on resource-constrained devices. However, model compression often degrades accuracy. Our method (Fig. \ref{fig:arch}) addresses this trade-off.
+
+As formulated in Eq. (1), the objective function balances classification and regularization.
+\begin{equation}
+\mathcal{L}_{total} = \alpha \mathcal{L}_{cls} + \beta \mathcal{L}_{reg} \label{eq:loss}
+\end{equation}
+
+\begin{figure}[htbp]
+\caption{System architecture diagram. (Caption above figure violates IEEE style)} % [paperfmt] 图注位置错误
+\centering
+\includegraphics[width=0.8\textwidth]{figs/arch.png}
+\label{fig:arch}
+\end{figure}
+
+\section{Method}
+We build upon the single-stage detection paradigm \cite{redmon2016yolo}. The proposed pruning strategy reduces FLOPs by 40\%. Table \ref{tab:results} summarizes the performance gain.
+
+\begin{table}[htbp]
+\caption{Comparison with baseline methods on EdgeBench v2} % [paperfmt] 表注位置正确，但表格格式不合规
+\centering
+\begin{tabular}{l c c}
+\hline
+Model & mAP (\%) & Latency (ms) \\
+\hline
+MobileNetV2 & 72.4 & 15.2 \\
+Ours & \textbf{78.9} & \textbf{11.8} \\
+\hline
+\end{tabular}
+\label{tab:results}
+\end{table}
+
+The training procedure is detailed in Algorithm \ref{alg:train}. We also adopt the data augmentation strategy from \cite{liu2016ssd} and the distillation loss proposed in \cite{hinton2015distill}.
+
+\begin{algorithm}
+\caption{Adaptive Pruning Routine}
+\begin{algorithmic}[1]
+\Require Pretrained model $M$, sparsity ratio $\rho$
+\Ensure Pruned model $M'$
+\State Compute sensitivity score $S_i$ for each layer
+\State Sort layers by $S_i$ in ascending order
+\State Remove bottom $\rho$ fraction of filters
+\State Fine-tune $M'$ for 10 epochs
+\end{algorithmic}
+\label{alg:train}
+\end{algorithm}
+
+\section{Conclusion}
+We presented a lightweight framework for edge AI. Future work will explore quantization-aware training \cite{unused_entry}.
+
+\bibliographystyle{IEEEtran}
+\bibliography{references}
+\end{document}

@@ -1,0 +1,8 @@
+[paperfmt] init completed
+[2026-04-19T16:11:02] check
+WARNING IEEE005 line 1: Missing IEEEkeywords environment.
+WARNING IEEE007 line 1: Citation 'redmon2016yolo' is missing DOI in bibliography entry.
+WARNING IEEE006 line 11: Possible anonymization leak in author block for double-blind submission.
+WARNING IEEE001 line 27: Figure caption should be placed after includegraphics in IEEE style. (fixable)
+Summary: 4 issues, 0 errors, 4 warnings
+
