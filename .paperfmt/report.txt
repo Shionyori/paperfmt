@@ -1,0 +1,11 @@
+[2026-04-19T16:21:30] check
+WARNING BIB-CROSSCHECK line 1: Citation key 'missing_ref' is used in tex but missing in bibliography.
+WARNING BIB-CROSSCHECK line 1: Bibliography entry 'unused_entry' is not cited in tex.
+WARNING IEEE005 line 1: Missing IEEEkeywords environment.
+WARNING IEEE007 line 1: Citation 'redmon2016yolo' is missing DOI in bibliography entry.
+WARNING IEEE006 line 11: Possible anonymization leak in author block for double-blind submission.
+WARNING CITE-MANUAL line 19: Manual numeric citation detected; use \cite{...} instead of [n].
+WARNING REF-HARDCODE line 21: Hard-coded cross reference detected; use \ref{...} or \eqref{...}.
+WARNING TAB-FORMAT line 39: Detected \hline in table; prefer booktabs commands (\toprule/\midrule/\bottomrule).
+Summary: 8 issues, 0 errors, 8 warnings
+

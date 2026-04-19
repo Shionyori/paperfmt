@@ -9,7 +9,7 @@ import click
 
 from paperfmt import __version__
 from paperfmt.core.checker import apply_safe_fixes, default_ruleset, run_checks
-from paperfmt.core.project_config import load_project_config
+from paperfmt.core.paperfmt_config import load_project_config
 from paperfmt.core.scaffold import create_project_scaffold, supported_templates
 
 
