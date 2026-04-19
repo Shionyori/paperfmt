@@ -6,3 +6,26 @@ WARNING IEEE006 line 11: Possible anonymization leak in author block for double-
 WARNING IEEE001 line 27: Figure caption should be placed after includegraphics in IEEE style. (fixable)
 Summary: 4 issues, 0 errors, 4 warnings
 
+[2026-04-19T16:16:34] check
+WARNING IEEE005 line 1: Missing IEEEkeywords environment.
+WARNING IEEE007 line 1: Citation 'redmon2016yolo' is missing DOI in bibliography entry.
+WARNING IEEE006 line 11: Possible anonymization leak in author block for double-blind submission.
+WARNING CITE-MANUAL line 19: Manual numeric citation detected; use \cite{...} instead of [n].
+WARNING REF-HARDCODE line 21: Hard-coded cross reference detected; use \ref{...} or \eqref{...}.
+WARNING IEEE001 line 27: Figure caption should be placed after includegraphics in IEEE style. (fixable)
+WARNING TAB-FORMAT line 40: Detected \hline in table; prefer booktabs commands (\toprule/\midrule/\bottomrule).
+Summary: 7 issues, 0 errors, 7 warnings
+
+[2026-04-19T16:18:03] fix
+Applied fixes: IEEE001
+Updated file: main.tex
+
+[2026-04-19T16:18:44] check
+WARNING IEEE005 line 1: Missing IEEEkeywords environment.
+WARNING IEEE007 line 1: Citation 'redmon2016yolo' is missing DOI in bibliography entry.
+WARNING IEEE006 line 11: Possible anonymization leak in author block for double-blind submission.
+WARNING CITE-MANUAL line 19: Manual numeric citation detected; use \cite{...} instead of [n].
+WARNING REF-HARDCODE line 21: Hard-coded cross reference detected; use \ref{...} or \eqref{...}.
+WARNING TAB-FORMAT line 39: Detected \hline in table; prefer booktabs commands (\toprule/\midrule/\bottomrule).
+Summary: 6 issues, 0 errors, 6 warnings
+

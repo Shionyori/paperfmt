@@ -14,6 +14,12 @@ CITE_VARIANT_WITH_BRACE_RE = re.compile(r"\\cite(?:t|p)(\s*\{)")
 AUTHOR_BLOCK_RE = re.compile(r"\\author\s*\{(.*?)\}", re.DOTALL)
 GENERIC_CITE_RE = re.compile(r"\\cite[a-zA-Z]*\s*\{([^}]*)\}")
 DOI_FIELD_RE = re.compile(r"^\s*doi\s*=", re.IGNORECASE | re.MULTILINE)
+MANUAL_CITE_RE = re.compile(r"\[(?:\s*\d+\s*)(?:,\s*\d+\s*)*\]")
+HARDCODED_REF_RE = re.compile(
+    r"\b(?:Eq\.|Equation|Fig\.|Figure|Table|Tab\.)\s*(?:\(\d+\)|\d+)(?=\s|[\.,;:!\?\)]|$)",
+    re.IGNORECASE,
+)
+BIB_ENTRY_KEY_RE = re.compile(r"@[a-zA-Z]+\s*\{\s*([^,\s]+)\s*,")
 
 
 def _line_of_offset(text: str, offset: int) -> int:
@@ -68,6 +74,38 @@ def _check_citation_style(text: str) -> list[Diagnostic]:
                 message="Use \\cite{...} for IEEE numeric citation style.",
                 line=_line_of_offset(text, match.start()),
                 can_fix=True,
+            )
+        )
+    return diagnostics
+
+
+def _check_manual_numeric_citations(text: str) -> list[Diagnostic]:
+    diagnostics: list[Diagnostic] = []
+    for match in MANUAL_CITE_RE.finditer(text):
+        # Skip command option contexts, e.g. \begin{algorithmic}[1].
+        prefix = text[max(0, match.start() - 120) : match.start()]
+        if re.search(r"\\[a-zA-Z*]+(?:\{[^{}]*\})*\s*$", prefix):
+            continue
+        diagnostics.append(
+            Diagnostic(
+                rule_id="CITE-MANUAL",
+                severity="warning",
+                message="Manual numeric citation detected; use \\cite{...} instead of [n].",
+                line=_line_of_offset(text, match.start()),
+            )
+        )
+    return diagnostics
+
+
+def _check_hardcoded_cross_refs(text: str) -> list[Diagnostic]:
+    diagnostics: list[Diagnostic] = []
+    for match in HARDCODED_REF_RE.finditer(text):
+        diagnostics.append(
+            Diagnostic(
+                rule_id="REF-HARDCODE",
+                severity="warning",
+                message="Hard-coded cross reference detected; use \\ref{...} or \\eqref{...}.",
+                line=_line_of_offset(text, match.start()),
             )
         )
     return diagnostics
@@ -166,6 +204,61 @@ def _check_missing_doi_from_config(text: str, tex_file: Path, bibliography: str)
     return diagnostics
 
 
+def _check_table_format_booktabs(text: str) -> list[Diagnostic]:
+    diagnostics: list[Diagnostic] = []
+    for match in TABLE_RE.finditer(text):
+        block = match.group(1)
+        if "\\hline" in block:
+            diagnostics.append(
+                Diagnostic(
+                    rule_id="TAB-FORMAT",
+                    severity="warning",
+                    message="Detected \\hline in table; prefer booktabs commands (\\toprule/\\midrule/\\bottomrule).",
+                    line=_line_of_offset(text, match.start(1) + block.find("\\hline")),
+                )
+            )
+    return diagnostics
+
+
+def _parse_bib_keys(bib_text: str) -> set[str]:
+    return {m.group(1).strip() for m in BIB_ENTRY_KEY_RE.finditer(bib_text)}
+
+
+def _check_bib_crosscheck(text: str, tex_file: Path, bibliography: str) -> list[Diagnostic]:
+    diagnostics: list[Diagnostic] = []
+    cited_keys = _extract_cited_keys(text)
+
+    bib_file = (tex_file.parent / bibliography).resolve()
+    if not bib_file.exists():
+        return diagnostics
+
+    bib_keys = _parse_bib_keys(bib_file.read_text(encoding="utf-8"))
+    missing = sorted(cited_keys - bib_keys)
+    unused = sorted(bib_keys - cited_keys)
+
+    for key in missing:
+        diagnostics.append(
+            Diagnostic(
+                rule_id="BIB-CROSSCHECK",
+                severity="warning",
+                message=f"Citation key '{key}' is used in tex but missing in bibliography.",
+                line=1,
+            )
+        )
+
+    for key in unused:
+        diagnostics.append(
+            Diagnostic(
+                rule_id="BIB-CROSSCHECK",
+                severity="warning",
+                message=f"Bibliography entry '{key}' is not cited in tex.",
+                line=1,
+            )
+        )
+
+    return diagnostics
+
+
 def _fix_caption_order_for_environment(block: str, is_figure: bool) -> tuple[str, bool]:
     lines = block.splitlines()
     cap_idx = next((i for i, line in enumerate(lines) if "\\caption{" in line), None)
@@ -227,6 +320,10 @@ RULES: tuple[RulePlugin, ...] = (
     RulePlugin("IEEE001", "warning", lambda text, tex_file, ruleset: _check_figure_caption_order(text), _fix_rule_001),
     RulePlugin("IEEE002", "warning", lambda text, tex_file, ruleset: _check_table_caption_order(text), _fix_rule_002),
     RulePlugin("IEEE003", "warning", lambda text, tex_file, ruleset: _check_citation_style(text), _fix_rule_003),
+    RulePlugin("CITE-MANUAL", "warning", lambda text, tex_file, ruleset: _check_manual_numeric_citations(text)),
+    RulePlugin("REF-HARDCODE", "warning", lambda text, tex_file, ruleset: _check_hardcoded_cross_refs(text)),
+    RulePlugin("TAB-FORMAT", "warning", lambda text, tex_file, ruleset: _check_table_format_booktabs(text)),
+    RulePlugin("BIB-CROSSCHECK", "warning", lambda text, tex_file, ruleset: _check_bib_crosscheck(text, tex_file, ruleset.bibliography)),
     RulePlugin("IEEE004", "error", lambda text, tex_file, ruleset: [d for d in _check_required_sections(text) if d.rule_id == "IEEE004"]),
     RulePlugin("IEEE005", "warning", lambda text, tex_file, ruleset: [d for d in _check_required_sections(text) if d.rule_id == "IEEE005"]),
     RulePlugin("IEEE006", "warning", lambda text, tex_file, ruleset: _check_anonymization_leak(text)),

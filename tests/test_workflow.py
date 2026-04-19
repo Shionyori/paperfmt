@@ -199,3 +199,62 @@ def test_init_rejects_removed_template_alias() -> None:
         result = runner.invoke(main, ["init", "--template", "ieee"])
         assert result.exit_code != 0
         assert "invalid value for '--template'" in result.output.lower()
+
+
+def test_check_reports_new_format_and_bib_rules() -> None:
+        runner = CliRunner()
+        with runner.isolated_filesystem():
+                runner.invoke(main, ["init", "--template", "ieee-conf"])
+
+                Path("main.tex").write_text(
+                        """\\documentclass[conference]{IEEEtran}
+\\title{Demo}
+\\author{Anonymous}
+\\begin{document}
+\\maketitle
+\\begin{abstract}
+Demo abstract.
+\\end{abstract}
+Recent advances [1] show progress.
+As shown in Eq. (1), we optimize loss.
+\\begin{table}
+\\caption{Demo table}
+\\begin{tabular}{c}
+\\hline
+A \\\\
+\\hline
+\\end{tabular}
+\\end{table}
+See \\cite{known_ref,missing_ref}.
+\\bibliography{references}
+\\end{document}
+""",
+                        encoding="utf-8",
+                )
+
+                Path("references.bib").write_text(
+                        """@article{known_ref,
+    author = {Alice},
+    title = {Known},
+    journal = {Demo},
+    year = {2024},
+    doi = {10.1000/known}
+}
+
+@article{unused_ref,
+    author = {Bob},
+    title = {Unused},
+    journal = {Demo},
+    year = {2024},
+    doi = {10.1000/unused}
+}
+""",
+                        encoding="utf-8",
+                )
+
+                result = runner.invoke(main, ["check"])
+                assert result.exit_code == 0
+                assert "CITE-MANUAL" in result.output
+                assert "REF-HARDCODE" in result.output
+                assert "TAB-FORMAT" in result.output
+                assert "BIB-CROSSCHECK" in result.output
