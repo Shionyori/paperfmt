@@ -1,82 +1,70 @@
 # paperfmt
 
-paperfmt is a CLI-first academic paper formatter that orchestrates Pandoc and LaTeX.
+paperfmt is a CLI tool for paper template compliance checks and safe auto-fixes.
 
-MVP scope:
-- Input: Markdown only
-- Template: IEEE only
-- Output: PDF (optional .tex and build log)
-- Positioning: document compiler, not an editor or writing platform
+Current scope:
+- Input: LaTeX source file (mainly `main.tex`)
+- Template: IEEE (extensible)
+- Positioning: checker/fixer, not editor and not compiler wrapper
+
+## Why this project
+
+Users can already compile LaTeX directly.
+paperfmt focuses on higher-value tasks before submission:
+- detect formatting/compliance issues quickly
+- provide actionable diagnostics
+- apply non-semantic safe fixes
 
 ## Quick Start
 
-1. Install dependencies:
+1. Install:
 
 ```bash
-# Ubuntu example
-sudo apt update
-sudo apt install -y pandoc texlive-xetex texlive-latex-recommended texlive-fonts-recommended texlive-latex-extra texlive-publishers lmodern fonts-noto-cjk
+pip install -e '.[dev]'
 ```
 
-2. Install paperfmt:
+2. Initialize a starter template project:
 
 ```bash
-pip install -e .
+paperfmt init --template ieee --out .
 ```
 
-3. Build:
+3. Run checks anytime:
 
 ```bash
-paperfmt build samples/paper.md --style ieee -o dist/paper.pdf
+paperfmt check main.tex --template ieee
 ```
 
-## Project-Bound Dependencies (Recommended for Windows/Linux Portability)
-
-If you want all non-Python dependencies bound to the project (Pandoc/LaTeX/fonts) and avoid per-machine setup, use Docker.
-
-1. Build the toolchain image once:
+4. Apply safe fixes:
 
 ```bash
-docker build -t paperfmt:local .
+paperfmt fix main.tex --template ieee
 ```
 
-2. Run paperfmt in the container (Linux/macOS shell):
+## Commands
 
 ```bash
-./scripts/paperfmt-docker.sh build samples/paper.md --style ieee -o dist/paper.pdf --keep-log --keep-tex
+paperfmt init --template ieee [--out DIR] [--force]
+paperfmt check INPUT.tex [--template ieee] [--format text|json] [--strict]
+paperfmt fix INPUT.tex [--template ieee] [--dry-run] [--backup/--no-backup]
 ```
 
-3. Run paperfmt in the container (Windows PowerShell):
+## Current built-in checks
 
-```powershell
-./scripts/paperfmt-docker.ps1 build samples/paper.md --style ieee -o dist/paper.pdf --keep-log --keep-tex
-```
+- Figure caption order (IEEE001)
+- Table caption order (IEEE002)
+- Citation style normalization target (IEEE003)
+- Required abstract environment (IEEE004)
+- Recommended IEEE keywords environment (IEEE005)
 
-This keeps dependency installation inside the image, not your host system. The project directory is mounted into `/workspace`, so build artifacts still appear in local `dist/`.
+## Safe auto-fixes currently supported
 
-## Configuration
+- move figure caption below `\\includegraphics`
+- move table caption above `\\begin{tabular}`
+- normalize `\\citep{}` / `\\citet{}` to `\\cite{}`
 
-Create `paperfmt.yaml` in your project root:
+## Roadmap
 
-```yaml
-style: ieee
-engine: xelatex
-timeout_seconds: 30
-output_dir: dist
-keep_tex: false
-keep_log: false
-```
-
-Priority: CLI flags > project `paperfmt.yaml` > `~/.config/paperfmt/defaults.yaml` > built-in defaults.
-
-## CLI options
-
-```bash
-paperfmt build INPUT.md [--style ieee] [-o OUTPUT.pdf] [--config PATH] [--keep-tex] [--keep-log] [--timeout 30] [-v|-vv]
-```
-
-## Notes
-
-- If `pandoc` is missing, paperfmt stops with an install hint.
-- If `xelatex` is missing, paperfmt stops with an install hint.
-- If LaTeX compile fails, paperfmt prints the trailing error excerpt.
+- Interactive preview and undo for fixes
+- More submission checks: anonymization leakage, DOI completeness, image resolution, link validity
+- Additional templates beyond IEEE

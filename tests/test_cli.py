@@ -7,4 +7,6 @@ def test_cli_help() -> None:
     runner = CliRunner()
     result = runner.invoke(main, ["--help"])
     assert result.exit_code == 0
-    assert "build" in result.output
+    assert "init" in result.output
+    assert "check" in result.output
+    assert "fix" in result.output
