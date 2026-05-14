@@ -260,3 +260,16 @@ See \\cite{known_ref,missing_ref}.
         assert "REF-HARDCODE" in result.output
         assert "TAB-FORMAT" in result.output
         assert "BIB-CROSSCHECK" in result.output
+
+
+def test_check_markdown_format() -> None:
+    runner = CliRunner()
+    with runner.isolated_filesystem():
+        runner.invoke(main, ["init", "--template", "ieee-conf"])
+        Path("main.tex").write_text(_problematic_tex(), encoding="utf-8")
+
+        result = runner.invoke(main, ["check", "--format", "markdown"])
+        assert result.exit_code == 0
+        assert "## paperfmt Check Report" in result.output
+        assert "| Severity | Rule | Line | Message | Fixable |" in result.output
+        assert "IEEE001" in result.output

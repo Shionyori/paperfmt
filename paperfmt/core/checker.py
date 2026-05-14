@@ -43,7 +43,7 @@ def run_checks(tex_file: Path, template: str, ruleset: RuleSet | None = None) ->
             )
 
     diagnostics.sort(key=lambda d: (d.line, d.rule_id))
-    return CheckReport(input_file=tex_file, diagnostics=diagnostics)
+    return CheckReport(input_file=tex_file, template=normalized_template, diagnostics=diagnostics)
 
 
 def apply_safe_fixes(tex_file: Path, template: str, ruleset: RuleSet | None = None) -> FixReport:

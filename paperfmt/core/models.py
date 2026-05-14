@@ -22,6 +22,7 @@ class Diagnostic:
 @dataclass(slots=True)
 class CheckReport:
     input_file: Path
+    template: str
     diagnostics: list[Diagnostic]
 
     @property

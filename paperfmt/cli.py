@@ -43,6 +43,25 @@ def init_command(template_name: str, output_dir: Path, force: bool) -> None:
         click.echo(f"- created: {path}")
 
 
+def _list_rules(template: str, ruleset: object) -> None:
+    """Print all rules for the template with enabled/severity status."""
+    from paperfmt.core.rules import get_template_plugins
+
+    plugins = get_template_plugins(template)
+    if not plugins:
+        click.echo(f"No rules defined for template '{template}'.")
+        return
+
+    click.echo(f"Rules for {template}:")
+    for plugin in plugins:
+        enabled = ruleset.is_enabled(plugin.rule_id)
+        severity = ruleset.resolve_severity(plugin.rule_id, plugin.default_severity)
+        status = "enabled " if enabled else "disabled"
+        fixable = " (fixable)" if plugin.fix is not None else ""
+        click.echo(f"  [{status}] {plugin.rule_id} ({severity}){fixable}")
+        click.echo(f"          {plugin.description}")
+
+
 def _render_text_report(report: object) -> None:
     diagnostics = report.diagnostics
     if not diagnostics:
@@ -54,6 +73,27 @@ def _render_text_report(report: object) -> None:
         click.echo(f"{item.severity.upper()} {item.rule_id} line {item.line}: {item.message}{can_fix}")
 
     click.echo(f"Summary: {len(diagnostics)} issues, {report.error_count} errors, {report.warning_count} warnings")
+
+
+def _render_markdown_report(report: object) -> None:
+    if not report.diagnostics:
+        click.echo("**No issues found.**")
+        return
+
+    click.echo("## paperfmt Check Report")
+    click.echo()
+    click.echo(f"**Template:** {report.template}")
+    click.echo(f"**File:** {report.input_file}")
+    click.echo()
+    click.echo("| Severity | Rule | Line | Message | Fixable |")
+    click.echo("|----------|------|------|---------|---------|")
+    for item in report.diagnostics:
+        can_fix = "yes" if item.can_fix else "no"
+        click.echo(f"| {item.severity.upper()} | {item.rule_id} | {item.line} | {item.message} | {can_fix} |")
+    click.echo()
+    click.echo(
+        f"**Summary:** {len(report.diagnostics)} issues, {report.error_count} errors, {report.warning_count} warnings"
+    )
 
 
 def _append_report(state_dir: Path, title: str, body: str) -> None:
@@ -70,7 +110,16 @@ def _append_report(state_dir: Path, title: str, body: str) -> None:
 @click.option(
     "--template", "template_name", default=None, type=click.Choice(supported_templates()), help="Template override"
 )
-@click.option("--format", "output_format", default="text", type=click.Choice(["text", "json"]), show_default=True)
+@click.option(
+    "--format", "output_format", default="text", type=click.Choice(["text", "json", "markdown"]), show_default=True
+)
+@click.option(
+    "--list-rules",
+    "list_rules",
+    is_flag=True,
+    default=False,
+    help="List all rules for the template and exit",
+)
 @click.option("--strict", is_flag=True, default=False, help="Return non-zero when warnings exist")
 @click.option(
     "--config",
@@ -80,7 +129,12 @@ def _append_report(state_dir: Path, title: str, body: str) -> None:
     show_default=True,
 )
 def check_command(
-    tex_file: Path | None, template_name: str | None, output_format: str, strict: bool, config_path: Path
+    tex_file: Path | None,
+    template_name: str | None,
+    output_format: str,
+    strict: bool,
+    config_path: Path,
+    list_rules: bool,
 ) -> None:
     """Scan .tex file for template compliance and formatting issues."""
     cfg = load_project_config(config_path)
@@ -88,6 +142,10 @@ def check_command(
     effective_tex_file = tex_file or Path(cfg.main_tex)
     state_dir = Path(cfg.state_dir)
     ruleset = default_ruleset(template=effective_template, bibliography=cfg.bibliography, rules=cfg.rules)
+
+    if list_rules:
+        _list_rules(effective_template, ruleset)
+        return
 
     if not effective_tex_file.exists():
         raise click.ClickException(f"Input file not found: {effective_tex_file}")
@@ -121,6 +179,19 @@ def check_command(
         rendered = json.dumps(payload, ensure_ascii=False, indent=2)
         click.echo(rendered)
         _append_report(state_dir, "check", rendered)
+    elif output_format == "markdown":
+        _render_markdown_report(report)
+        # Build text for report file
+        lines: list[str] = []
+        for item in report.diagnostics:
+            can_fix = " (fixable)" if item.can_fix else ""
+            lines.append(f"{item.severity.upper()} {item.rule_id} line {item.line}: {item.message}{can_fix}")
+        if not lines:
+            lines.append("No issues found.")
+        lines.append(
+            f"Summary: {len(report.diagnostics)} issues, {report.error_count} errors, {report.warning_count} warnings"
+        )
+        _append_report(state_dir, "check", "\n".join(lines))
     else:
         lines: list[str] = []
         _render_text_report(report)
