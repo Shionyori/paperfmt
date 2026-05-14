@@ -9,7 +9,9 @@ import click
 
 from paperfmt import __version__
 from paperfmt.core.checker import apply_safe_fixes, default_ruleset, run_checks
+from paperfmt.core.models import CheckReport, RuleSet
 from paperfmt.core.paperfmt_config import load_project_config
+from paperfmt.core.rules import get_template_plugins
 from paperfmt.core.scaffold import create_project_scaffold, supported_templates
 
 
@@ -43,10 +45,8 @@ def init_command(template_name: str, output_dir: Path, force: bool) -> None:
         click.echo(f"- created: {path}")
 
 
-def _list_rules(template: str, ruleset: object) -> None:
+def _list_rules(template: str, ruleset: RuleSet) -> None:
     """Print all rules for the template with enabled/severity status."""
-    from paperfmt.core.rules import get_template_plugins
-
     plugins = get_template_plugins(template)
     if not plugins:
         click.echo(f"No rules defined for template '{template}'.")
@@ -75,7 +75,21 @@ def _render_text_report(report: object) -> None:
     click.echo(f"Summary: {len(diagnostics)} issues, {report.error_count} errors, {report.warning_count} warnings")
 
 
-def _render_markdown_report(report: object) -> None:
+def _build_report_file_lines(report: CheckReport) -> list[str]:
+    """Build text lines for the report file from diagnostics."""
+    lines: list[str] = []
+    for item in report.diagnostics:
+        can_fix = " (fixable)" if item.can_fix else ""
+        lines.append(f"{item.severity.upper()} {item.rule_id} line {item.line}: {item.message}{can_fix}")
+    if not lines:
+        lines.append("No issues found.")
+    lines.append(
+        f"Summary: {len(report.diagnostics)} issues, {report.error_count} errors, {report.warning_count} warnings"
+    )
+    return lines
+
+
+def _render_markdown_report(report: CheckReport) -> None:
     if not report.diagnostics:
         click.echo("**No issues found.**")
         return
@@ -181,29 +195,10 @@ def check_command(
         _append_report(state_dir, "check", rendered)
     elif output_format == "markdown":
         _render_markdown_report(report)
-        # Build text for report file
-        lines: list[str] = []
-        for item in report.diagnostics:
-            can_fix = " (fixable)" if item.can_fix else ""
-            lines.append(f"{item.severity.upper()} {item.rule_id} line {item.line}: {item.message}{can_fix}")
-        if not lines:
-            lines.append("No issues found.")
-        lines.append(
-            f"Summary: {len(report.diagnostics)} issues, {report.error_count} errors, {report.warning_count} warnings"
-        )
-        _append_report(state_dir, "check", "\n".join(lines))
+        _append_report(state_dir, "check", "\n".join(_build_report_file_lines(report)))
     else:
-        lines: list[str] = []
         _render_text_report(report)
-        for item in report.diagnostics:
-            can_fix = " (fixable)" if item.can_fix else ""
-            lines.append(f"{item.severity.upper()} {item.rule_id} line {item.line}: {item.message}{can_fix}")
-        if not lines:
-            lines.append("No issues found.")
-        lines.append(
-            f"Summary: {len(report.diagnostics)} issues, {report.error_count} errors, {report.warning_count} warnings"
-        )
-        _append_report(state_dir, "check", "\n".join(lines))
+        _append_report(state_dir, "check", "\n".join(_build_report_file_lines(report)))
 
     exit_code = 1 if report.error_count > 0 or (strict and report.warning_count > 0) else 0
     raise SystemExit(exit_code)
