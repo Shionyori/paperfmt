@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-
 DEFAULT_TEMPLATE = "ieee-conf"
 
 TEMPLATE_ALIASES: dict[str, str] = {}

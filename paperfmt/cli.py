@@ -1,8 +1,8 @@
 from __future__ import annotations
 
 import difflib
-from datetime import datetime
 import json
+from datetime import datetime
 from pathlib import Path
 
 import click
@@ -20,8 +20,12 @@ def main() -> None:
 
 
 @main.command("init")
-@click.option("--template", "template_name", required=True, type=click.Choice(supported_templates()), help="Template name")
-@click.option("--out", "output_dir", default=".", type=click.Path(file_okay=False, path_type=Path), help="Output directory")
+@click.option(
+    "--template", "template_name", required=True, type=click.Choice(supported_templates()), help="Template name"
+)
+@click.option(
+    "--out", "output_dir", default=".", type=click.Path(file_okay=False, path_type=Path), help="Output directory"
+)
 @click.option("--force", is_flag=True, default=False, help="Overwrite existing files")
 def init_command(template_name: str, output_dir: Path, force: bool) -> None:
     """Initialize paperfmt state and config for an existing paper project."""
@@ -40,7 +44,7 @@ def init_command(template_name: str, output_dir: Path, force: bool) -> None:
 
 
 def _render_text_report(report: object) -> None:
-    diagnostics = getattr(report, "diagnostics")
+    diagnostics = report.diagnostics
     if not diagnostics:
         click.echo("No issues found.")
         return
@@ -49,10 +53,7 @@ def _render_text_report(report: object) -> None:
         can_fix = " (fixable)" if item.can_fix else ""
         click.echo(f"{item.severity.upper()} {item.rule_id} line {item.line}: {item.message}{can_fix}")
 
-    click.echo(
-        f"Summary: {len(diagnostics)} issues, "
-        f"{report.error_count} errors, {report.warning_count} warnings"
-    )
+    click.echo(f"Summary: {len(diagnostics)} issues, {report.error_count} errors, {report.warning_count} warnings")
 
 
 def _append_report(state_dir: Path, title: str, body: str) -> None:
@@ -66,11 +67,21 @@ def _append_report(state_dir: Path, title: str, body: str) -> None:
 
 @main.command("check")
 @click.argument("tex_file", required=False, type=click.Path(dir_okay=False, path_type=Path))
-@click.option("--template", "template_name", default=None, type=click.Choice(supported_templates()), help="Template override")
+@click.option(
+    "--template", "template_name", default=None, type=click.Choice(supported_templates()), help="Template override"
+)
 @click.option("--format", "output_format", default="text", type=click.Choice(["text", "json"]), show_default=True)
 @click.option("--strict", is_flag=True, default=False, help="Return non-zero when warnings exist")
-@click.option("--config", "config_path", default="paperfmt.toml", type=click.Path(dir_okay=False, path_type=Path), show_default=True)
-def check_command(tex_file: Path | None, template_name: str | None, output_format: str, strict: bool, config_path: Path) -> None:
+@click.option(
+    "--config",
+    "config_path",
+    default="paperfmt.toml",
+    type=click.Path(dir_okay=False, path_type=Path),
+    show_default=True,
+)
+def check_command(
+    tex_file: Path | None, template_name: str | None, output_format: str, strict: bool, config_path: Path
+) -> None:
     """Scan .tex file for template compliance and formatting issues."""
     cfg = load_project_config(config_path)
     effective_template = template_name or cfg.template
@@ -118,7 +129,9 @@ def check_command(tex_file: Path | None, template_name: str | None, output_forma
             lines.append(f"{item.severity.upper()} {item.rule_id} line {item.line}: {item.message}{can_fix}")
         if not lines:
             lines.append("No issues found.")
-        lines.append(f"Summary: {len(report.diagnostics)} issues, {report.error_count} errors, {report.warning_count} warnings")
+        lines.append(
+            f"Summary: {len(report.diagnostics)} issues, {report.error_count} errors, {report.warning_count} warnings"
+        )
         _append_report(state_dir, "check", "\n".join(lines))
 
     exit_code = 1 if report.error_count > 0 or (strict and report.warning_count > 0) else 0
@@ -127,11 +140,21 @@ def check_command(tex_file: Path | None, template_name: str | None, output_forma
 
 @main.command("fix")
 @click.argument("tex_file", required=False, type=click.Path(dir_okay=False, path_type=Path))
-@click.option("--template", "template_name", default=None, type=click.Choice(supported_templates()), help="Template override")
+@click.option(
+    "--template", "template_name", default=None, type=click.Choice(supported_templates()), help="Template override"
+)
 @click.option("--dry-run", is_flag=True, default=False, help="Preview patch without writing files")
 @click.option("--backup/--no-backup", default=True, show_default=True, help="Write .bak before applying fixes")
-@click.option("--config", "config_path", default="paperfmt.toml", type=click.Path(dir_okay=False, path_type=Path), show_default=True)
-def fix_command(tex_file: Path | None, template_name: str | None, dry_run: bool, backup: bool, config_path: Path) -> None:
+@click.option(
+    "--config",
+    "config_path",
+    default="paperfmt.toml",
+    type=click.Path(dir_okay=False, path_type=Path),
+    show_default=True,
+)
+def fix_command(
+    tex_file: Path | None, template_name: str | None, dry_run: bool, backup: bool, config_path: Path
+) -> None:
     """Apply safe formatting fixes that do not change paper semantics."""
     cfg = load_project_config(config_path)
     effective_template = template_name or cfg.template

@@ -4,7 +4,8 @@ import shutil
 from pathlib import Path
 
 from paperfmt.core.paperfmt_config import write_default_config
-from paperfmt.core.registry import is_supported_template, normalize_template, supported_templates as registry_supported_templates
+from paperfmt.core.registry import is_supported_template, normalize_template
+from paperfmt.core.registry import supported_templates as registry_supported_templates
 
 
 def supported_templates() -> tuple[str, ...]:

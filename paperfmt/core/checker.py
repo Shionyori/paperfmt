@@ -7,7 +7,9 @@ from paperfmt.core.registry import is_supported_template, normalize_template
 from paperfmt.core.rules import get_template_plugins, get_template_rule_defaults
 
 
-def default_ruleset(template: str = "ieee-conf", bibliography: str = "references.bib", rules: dict[str, RuleOverride] | None = None) -> RuleSet:
+def default_ruleset(
+    template: str = "ieee-conf", bibliography: str = "references.bib", rules: dict[str, RuleOverride] | None = None
+) -> RuleSet:
     return RuleSet(template=normalize_template(template), bibliography=bibliography, rules=rules or {})
 
 

@@ -167,7 +167,9 @@ def test_ruleset_can_disable_rule() -> None:
         runner.invoke(main, ["init", "--template", "ieee-conf"])
         Path("main.tex").write_text(_problematic_tex(), encoding="utf-8")
         Path("paperfmt.toml").write_text(
-            Path("paperfmt.toml").read_text(encoding="utf-8").replace(
+            Path("paperfmt.toml")
+            .read_text(encoding="utf-8")
+            .replace(
                 "[rules.IEEE003]\nenabled = true",
                 "[rules.IEEE003]\nenabled = false",
             ),
@@ -202,12 +204,12 @@ def test_init_rejects_removed_template_alias() -> None:
 
 
 def test_check_reports_new_format_and_bib_rules() -> None:
-        runner = CliRunner()
-        with runner.isolated_filesystem():
-                runner.invoke(main, ["init", "--template", "ieee-conf"])
+    runner = CliRunner()
+    with runner.isolated_filesystem():
+        runner.invoke(main, ["init", "--template", "ieee-conf"])
 
-                Path("main.tex").write_text(
-                        """\\documentclass[conference]{IEEEtran}
+        Path("main.tex").write_text(
+            """\\documentclass[conference]{IEEEtran}
 \\title{Demo}
 \\author{Anonymous}
 \\begin{document}
@@ -229,11 +231,11 @@ See \\cite{known_ref,missing_ref}.
 \\bibliography{references}
 \\end{document}
 """,
-                        encoding="utf-8",
-                )
+            encoding="utf-8",
+        )
 
-                Path("references.bib").write_text(
-                        """@article{known_ref,
+        Path("references.bib").write_text(
+            """@article{known_ref,
     author = {Alice},
     title = {Known},
     journal = {Demo},
@@ -249,12 +251,12 @@ See \\cite{known_ref,missing_ref}.
     doi = {10.1000/unused}
 }
 """,
-                        encoding="utf-8",
-                )
+            encoding="utf-8",
+        )
 
-                result = runner.invoke(main, ["check"])
-                assert result.exit_code == 0
-                assert "CITE-MANUAL" in result.output
-                assert "REF-HARDCODE" in result.output
-                assert "TAB-FORMAT" in result.output
-                assert "BIB-CROSSCHECK" in result.output
+        result = runner.invoke(main, ["check"])
+        assert result.exit_code == 0
+        assert "CITE-MANUAL" in result.output
+        assert "REF-HARDCODE" in result.output
+        assert "TAB-FORMAT" in result.output
+        assert "BIB-CROSSCHECK" in result.output

@@ -4,7 +4,6 @@ from paperfmt.core.registry import DEFAULT_TEMPLATE, normalize_template
 from paperfmt.core.rules.base import RulePlugin
 from paperfmt.core.rules.ieee_conf import RULES as IEEE_CONF_RULES
 
-
 TEMPLATE_RULES: dict[str, tuple[RulePlugin, ...]] = {
     "ieee-conf": IEEE_CONF_RULES,
 }

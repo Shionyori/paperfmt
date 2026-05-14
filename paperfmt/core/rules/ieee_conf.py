@@ -3,9 +3,8 @@ from __future__ import annotations
 import re
 from pathlib import Path
 
-from paperfmt.core.models import Diagnostic, RuleSet
+from paperfmt.core.models import Diagnostic
 from paperfmt.core.rules.base import RulePlugin
-
 
 FIGURE_RE = re.compile(r"\\begin\{figure\*?\}(.*?)\\end\{figure\*?\}", re.DOTALL)
 TABLE_RE = re.compile(r"\\begin\{table\*?\}(.*?)\\end\{table\*?\}", re.DOTALL)
@@ -323,9 +322,25 @@ RULES: tuple[RulePlugin, ...] = (
     RulePlugin("CITE-MANUAL", "warning", lambda text, tex_file, ruleset: _check_manual_numeric_citations(text)),
     RulePlugin("REF-HARDCODE", "warning", lambda text, tex_file, ruleset: _check_hardcoded_cross_refs(text)),
     RulePlugin("TAB-FORMAT", "warning", lambda text, tex_file, ruleset: _check_table_format_booktabs(text)),
-    RulePlugin("BIB-CROSSCHECK", "warning", lambda text, tex_file, ruleset: _check_bib_crosscheck(text, tex_file, ruleset.bibliography)),
-    RulePlugin("IEEE004", "error", lambda text, tex_file, ruleset: [d for d in _check_required_sections(text) if d.rule_id == "IEEE004"]),
-    RulePlugin("IEEE005", "warning", lambda text, tex_file, ruleset: [d for d in _check_required_sections(text) if d.rule_id == "IEEE005"]),
+    RulePlugin(
+        "BIB-CROSSCHECK",
+        "warning",
+        lambda text, tex_file, ruleset: _check_bib_crosscheck(text, tex_file, ruleset.bibliography),
+    ),
+    RulePlugin(
+        "IEEE004",
+        "error",
+        lambda text, tex_file, ruleset: [d for d in _check_required_sections(text) if d.rule_id == "IEEE004"],
+    ),
+    RulePlugin(
+        "IEEE005",
+        "warning",
+        lambda text, tex_file, ruleset: [d for d in _check_required_sections(text) if d.rule_id == "IEEE005"],
+    ),
     RulePlugin("IEEE006", "warning", lambda text, tex_file, ruleset: _check_anonymization_leak(text)),
-    RulePlugin("IEEE007", "warning", lambda text, tex_file, ruleset: _check_missing_doi_from_config(text, tex_file, ruleset.bibliography)),
+    RulePlugin(
+        "IEEE007",
+        "warning",
+        lambda text, tex_file, ruleset: _check_missing_doi_from_config(text, tex_file, ruleset.bibliography),
+    ),
 )
