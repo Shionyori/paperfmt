@@ -99,7 +99,7 @@ def test_check_reports_anonymization_and_missing_doi() -> None:
         tex.write_text(
             """\\documentclass[conference]{IEEEtran}
 \\title{Demo}
-\\author{John Doe}
+\\author{John Doe\\thanks{Funded by grant}}
 \\begin{document}
 \\maketitle
 \\begin{abstract}
@@ -109,6 +109,7 @@ Demo abstract.
 paperfmt
 \\end{IEEEkeywords}
 See \\cite{a1}.
+\\bibliographystyle{IEEEtran}
 \\bibliography{references}
 \\end{document}
 """,
@@ -211,12 +212,15 @@ def test_check_reports_new_format_and_bib_rules() -> None:
         Path("main.tex").write_text(
             """\\documentclass[conference]{IEEEtran}
 \\title{Demo}
-\\author{Anonymous}
+\\author{Anonymous\\thanks{Supported by grant}}
 \\begin{document}
 \\maketitle
 \\begin{abstract}
 Demo abstract.
 \\end{abstract}
+\\begin{IEEEkeywords}
+demo
+\\end{IEEEkeywords}
 Recent advances [1] show progress.
 As shown in Eq. (1), we optimize loss.
 \\begin{table}
@@ -228,6 +232,7 @@ A \\\\
 \\end{tabular}
 \\end{table}
 See \\cite{known_ref,missing_ref}.
+\\bibliographystyle{IEEEtran}
 \\bibliography{references}
 \\end{document}
 """,
@@ -302,6 +307,113 @@ def test_resolve_includes_missing_file() -> None:
 
         result = resolve_includes(Path("main.tex"))
         assert "\\input{missing}" in result
+
+
+def test_check_ieee008_missing_thanks() -> None:
+    runner = CliRunner()
+    with runner.isolated_filesystem():
+        runner.invoke(main, ["init", "--template", "ieee-conf"])
+        Path("main.tex").write_text(
+            """\\documentclass[conference]{IEEEtran}
+\\title{Demo}
+\\author{John Doe}
+\\begin{document}
+\\maketitle
+\\begin{abstract}
+Demo.
+\\end{abstract}
+\\begin{IEEEkeywords}
+demo
+\\end{IEEEkeywords}
+\\end{document}
+""",
+            encoding="utf-8",
+        )
+        result = runner.invoke(main, ["check"])
+        assert result.exit_code == 0
+        assert "IEEE008" in result.output
+
+
+def test_check_ieee011_missing_bibliographystyle() -> None:
+    runner = CliRunner()
+    with runner.isolated_filesystem():
+        runner.invoke(main, ["init", "--template", "ieee-conf"])
+        Path("main.tex").write_text(
+            """\\documentclass[conference]{IEEEtran}
+\\title{Demo}
+\\author{Anonymous}
+\\begin{document}
+\\maketitle
+\\begin{abstract}
+Demo.
+\\end{abstract}
+\\begin{IEEEkeywords}
+demo
+\\end{IEEEkeywords}
+\\bibliography{references}
+\\end{document}
+""",
+            encoding="utf-8",
+        )
+        result = runner.invoke(main, ["check"])
+        assert result.exit_code != 0
+        assert "IEEE011" in result.output
+
+
+def test_fix_ieee011_adds_bibliographystyle() -> None:
+    runner = CliRunner()
+    with runner.isolated_filesystem():
+        runner.invoke(main, ["init", "--template", "ieee-conf"])
+        tex = Path("main.tex")
+        content = """\\documentclass[conference]{IEEEtran}
+\\title{Demo}
+\\author{Anonymous}
+\\begin{document}
+\\maketitle
+\\begin{abstract}
+Demo.
+\\end{abstract}
+\\begin{IEEEkeywords}
+demo
+\\end{IEEEkeywords}
+\\bibliography{references}
+\\end{document}
+"""
+        tex.write_text(content, encoding="utf-8")
+        result = runner.invoke(main, ["fix"])
+        assert result.exit_code == 0
+        updated = tex.read_text(encoding="utf-8")
+        assert "\\bibliographystyle{IEEEtran}" in updated
+        bs_pos = updated.index("\\bibliographystyle{IEEEtran}")
+        bib_pos = updated.index("\\bibliography{references}")
+        assert bs_pos < bib_pos
+
+
+def test_check_ieee012_missing_balance() -> None:
+    runner = CliRunner()
+    with runner.isolated_filesystem():
+        runner.invoke(main, ["init", "--template", "ieee-conf"])
+        Path("main.tex").write_text(
+            """\\documentclass[conference]{IEEEtran}
+\\title{Demo}
+\\author{Anonymous}
+\\begin{document}
+\\maketitle
+\\begin{abstract}
+Demo.
+\\end{abstract}
+\\begin{IEEEkeywords}
+demo
+\\end{IEEEkeywords}
+\\bibliographystyle{IEEEtran}
+\\bibliography{references}
+\\end{document}
+""",
+            encoding="utf-8",
+        )
+        result = runner.invoke(main, ["check"])
+        assert result.exit_code == 0
+        assert "IEEE012" in result.output
 
 
 def test_check_multi_file_project() -> None:

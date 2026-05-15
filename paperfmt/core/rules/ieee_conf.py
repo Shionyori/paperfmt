@@ -203,6 +203,61 @@ def _check_missing_doi_from_config(text: str, tex_file: Path, bibliography: str)
     return diagnostics
 
 
+BIBLIOGRAPHY_CMD_RE = re.compile(r"\\bibliography\s*\{([^}]+)\}")
+BIB_STYLE_RE = re.compile(r"\\bibliographystyle\s*\{([^}]+)\}")
+PARSTART_RE = re.compile(r"\\IEEEPARstart")
+BALANCE_RE = re.compile(r"\\(?:balance|balancest?authors|IEEEtriggeratref|IEEEtriggercmd)\b")
+
+
+def _check_ieee_structure(text: str) -> list[Diagnostic]:
+    """Run IEEE008, IEEE011, IEEE012 checks, returning all diagnostics."""
+    diagnostics: list[Diagnostic] = []
+
+    # IEEE008: check for \thanks in author block
+    if "\\thanks" not in text:
+        diagnostics.append(
+            Diagnostic(
+                rule_id="IEEE008",
+                severity="warning",
+                message="No \\thanks found; consider adding for author affiliations/funding.",
+                line=1,
+            )
+        )
+
+    # IEEE011: check for \bibliographystyle{IEEEtran}
+    has_bib = bool(BIBLIOGRAPHY_CMD_RE.search(text))
+    has_style = bool(BIB_STYLE_RE.search(text))
+    if has_bib and not has_style:
+        bib_match = BIBLIOGRAPHY_CMD_RE.search(text)
+        line = _line_of_offset(text, bib_match.start()) if bib_match else 1
+        diagnostics.append(
+            Diagnostic(
+                rule_id="IEEE011",
+                severity="error",
+                message="Missing \\bibliographystyle{IEEEtran} before \\bibliography.",
+                line=line,
+                can_fix=True,
+            )
+        )
+
+    # IEEE012: check for balancing commands between bibliography and end document
+    end_doc = text.find("\\end{document}")
+    bib_match = BIBLIOGRAPHY_CMD_RE.search(text)
+    if bib_match:
+        between = text[bib_match.end():end_doc] if end_doc > bib_match.end() else ""
+        if not BALANCE_RE.search(between):
+            diagnostics.append(
+                Diagnostic(
+                    rule_id="IEEE012",
+                    severity="info",
+                    message="Consider adding \\balance or \\balancest authors before \\end{document} for two-column IEEE format.",
+                    line=_line_of_offset(text, bib_match.start()),
+                )
+            )
+
+    return diagnostics
+
+
 def _check_table_format_booktabs(text: str) -> list[Diagnostic]:
     diagnostics: list[Diagnostic] = []
     for match in TABLE_RE.finditer(text):
@@ -315,6 +370,18 @@ def _fix_rule_003(text: str) -> tuple[str, bool]:
     return updated, updated != text
 
 
+def _fix_rule_011(text: str) -> tuple[str, bool]:
+    """Insert \\bibliographystyle{IEEEtran} before \\bibliography."""
+    bib_match = BIBLIOGRAPHY_CMD_RE.search(text)
+    if not bib_match:
+        return text, False
+    if BIB_STYLE_RE.search(text):
+        return text, False
+    insert_pos = bib_match.start()
+    updated = text[:insert_pos] + "\\bibliographystyle{IEEEtran}\n" + text[insert_pos:]
+    return updated, True
+
+
 RULES: tuple[RulePlugin, ...] = (
     RulePlugin(
         "IEEE001",
@@ -384,5 +451,24 @@ RULES: tuple[RulePlugin, ...] = (
         "Cited entry missing DOI in bibliography",
         "warning",
         lambda text, tex_file, ruleset: _check_missing_doi_from_config(text, tex_file, ruleset.bibliography),
+    ),
+    RulePlugin(
+        "IEEE008",
+        "Check for \\thanks and \\IEEEPARstart presence",
+        "warning",
+        lambda text, tex_file, ruleset: [d for d in _check_ieee_structure(text) if d.rule_id == "IEEE008"],
+    ),
+    RulePlugin(
+        "IEEE011",
+        "Check for missing \\bibliographystyle{IEEEtran}",
+        "error",
+        lambda text, tex_file, ruleset: [d for d in _check_ieee_structure(text) if d.rule_id == "IEEE011"],
+        _fix_rule_011,
+    ),
+    RulePlugin(
+        "IEEE012",
+        "Check for missing column balance command",
+        "info",
+        lambda text, tex_file, ruleset: [d for d in _check_ieee_structure(text) if d.rule_id == "IEEE012"],
     ),
 )
