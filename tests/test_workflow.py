@@ -262,6 +262,85 @@ See \\cite{known_ref,missing_ref}.
         assert "BIB-CROSSCHECK" in result.output
 
 
+def test_resolve_includes_single_file() -> None:
+    from paperfmt.core.tex_utils import resolve_includes
+
+    runner = CliRunner()
+    with runner.isolated_filesystem():
+        Path("main.tex").write_text("Hello\n\\input{sub}\nWorld\n", encoding="utf-8")
+        Path("sub.tex").write_text("Included\n", encoding="utf-8")
+
+        result = resolve_includes(Path("main.tex"))
+        assert "Hello" in result
+        assert "Included" in result
+        assert "World" in result
+
+
+def test_resolve_includes_nested() -> None:
+    from paperfmt.core.tex_utils import resolve_includes
+
+    runner = CliRunner()
+    with runner.isolated_filesystem():
+        Path("main.tex").write_text("A\n\\input{sub}\nB\n", encoding="utf-8")
+        Path("sub.tex").write_text("C\n\\input{deep}\nD\n", encoding="utf-8")
+        Path("deep.tex").write_text("E\n", encoding="utf-8")
+
+        result = resolve_includes(Path("main.tex"))
+        assert "A" in result
+        assert "C" in result
+        assert "E" in result
+        assert "D" in result
+        assert "B" in result
+
+
+def test_resolve_includes_missing_file() -> None:
+    from paperfmt.core.tex_utils import resolve_includes
+
+    runner = CliRunner()
+    with runner.isolated_filesystem():
+        Path("main.tex").write_text("A\n\\input{missing}\nB\n", encoding="utf-8")
+
+        result = resolve_includes(Path("main.tex"))
+        assert "\\input{missing}" in result
+
+
+def test_check_multi_file_project() -> None:
+    runner = CliRunner()
+    with runner.isolated_filesystem():
+        runner.invoke(main, ["init", "--template", "ieee-conf"])
+        Path("main.tex").write_text(
+            """\\documentclass[conference]{IEEEtran}
+\\title{Demo}
+\\author{Anonymous}
+\\begin{document}
+\\maketitle
+\\begin{abstract}
+Demo.
+\\end{abstract}
+\\begin{IEEEkeywords}
+demo
+\\end{IEEEkeywords}
+\\input{section1}
+\\end{document}
+""",
+            encoding="utf-8",
+        )
+        Path("section1.tex").write_text(
+            """\\begin{figure}
+\\caption{A figure}
+\\includegraphics{demo.png}
+\\end{figure}
+See \\citep{demo2026}.
+""",
+            encoding="utf-8",
+        )
+
+        result = runner.invoke(main, ["check"])
+        assert result.exit_code == 0
+        assert "IEEE001" in result.output
+        assert "IEEE003" in result.output
+
+
 def test_check_markdown_format() -> None:
     runner = CliRunner()
     with runner.isolated_filesystem():

@@ -5,6 +5,7 @@ from pathlib import Path
 from paperfmt.core.models import CheckReport, Diagnostic, FixReport, RuleOverride, RuleSet
 from paperfmt.core.registry import is_supported_template, normalize_template
 from paperfmt.core.rules import get_template_plugins, get_template_rule_defaults
+from paperfmt.core.tex_utils import resolve_includes
 
 
 def default_ruleset(
@@ -23,7 +24,7 @@ def run_checks(tex_file: Path, template: str, ruleset: RuleSet | None = None) ->
         raise ValueError(f"Unsupported template: {template}")
 
     active_ruleset = ruleset or default_ruleset(template=normalized_template)
-    text = tex_file.read_text(encoding="utf-8")
+    text = resolve_includes(tex_file)
     diagnostics: list[Diagnostic] = []
 
     for plugin in get_template_plugins(normalized_template):
