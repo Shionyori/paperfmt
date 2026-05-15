@@ -749,6 +749,56 @@ def test_check_page_limit() -> None:
         assert "PAGE-LIMIT" in result.output
 
 
+def test_fix_prune_unused() -> None:
+    runner = CliRunner()
+    with runner.isolated_filesystem():
+        runner.invoke(main, ["init", "--template", "ieee-conf"])
+        tex = Path("main.tex")
+        bib = Path("references.bib")
+
+        tex.write_text(
+            """\\documentclass[conference]{IEEEtran}
+\\title{Demo}
+\\author{Anonymous\\thanks{Supported}}
+\\begin{document}
+\\maketitle
+\\begin{abstract}
+Demo.
+\\end{abstract}
+\\begin{IEEEkeywords}
+demo
+\\end{IEEEkeywords}
+See \\cite{used_ref}.
+\\bibliographystyle{IEEEtran}
+\\bibliography{references}
+\\end{document}
+""",
+            encoding="utf-8",
+        )
+        bib.write_text(
+            """@article{used_ref,
+  author = {Alice},
+  title = {Used},
+  journal = {Demo},
+  year = {2024}
+}
+
+@article{unused_ref,
+  author = {Bob},
+  title = {Unused},
+  journal = {Demo},
+  year = {2024}
+}
+""",
+            encoding="utf-8",
+        )
+        result = runner.invoke(main, ["fix", "--prune-unused"])
+        assert result.exit_code == 0
+        updated_bib = bib.read_text(encoding="utf-8")
+        assert "used_ref" in updated_bib
+        assert "unused_ref" not in updated_bib
+
+
 def test_check_multi_file_project() -> None:
     runner = CliRunner()
     with runner.isolated_filesystem():

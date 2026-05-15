@@ -591,6 +591,28 @@ def _check_page_limit(text: str) -> list[Diagnostic]:
     return diagnostics
 
 
+def prune_unused_bib_entries(tex_text: str, bib_text: str) -> tuple[str, bool]:
+    """Remove bibliography entries not cited in the tex file."""
+    cited_keys = _extract_cited_keys(tex_text)
+    if not cited_keys:
+        return bib_text, False
+
+    entries = re.split(r"(?=@[a-zA-Z]+\s*\{)", bib_text)
+    kept_entries: list[str] = []
+
+    for entry in entries:
+        entry = entry.strip()
+        if not entry:
+            continue
+        key_match = BIB_ENTRY_KEY_RE.match(entry)
+        if key_match and key_match.group(1).strip() not in cited_keys:
+            continue
+        kept_entries.append(entry)
+
+    result = "\n\n".join(kept_entries) + "\n"
+    return result, result != bib_text
+
+
 RULES: tuple[RulePlugin, ...] = (
     RulePlugin(
         "IEEE001",

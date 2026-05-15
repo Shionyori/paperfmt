@@ -13,6 +13,7 @@ from paperfmt.core.models import CheckReport, RuleSet
 from paperfmt.core.paperfmt_config import load_project_config
 from paperfmt.core.rules import get_template_plugins
 from paperfmt.core.scaffold import create_project_scaffold, supported_templates
+from paperfmt.core.tex_utils import resolve_includes
 
 
 @click.group()
@@ -204,6 +205,45 @@ def check_command(
     raise SystemExit(exit_code)
 
 
+def _handle_prune_unused(
+    tex_file: Path, cfg: object, state_dir: Path, dry_run: bool, backup: bool
+) -> None:
+    from paperfmt.core.rules.ieee_conf import prune_unused_bib_entries
+
+    bib_path = (tex_file.parent / cfg.bibliography).resolve()
+    if not bib_path.exists():
+        return
+
+    bib_text = bib_path.read_text(encoding="utf-8")
+    pruned_text, bib_changed = prune_unused_bib_entries(
+        resolve_includes(tex_file), bib_text
+    )
+    if not bib_changed:
+        return
+
+    if dry_run:
+        diff = "\n".join(
+            difflib.unified_diff(
+                bib_text.splitlines(),
+                pruned_text.splitlines(),
+                fromfile=f"{bib_path}",
+                tofile=f"{bib_path} (pruned)",
+                lineterm="",
+            )
+        )
+        click.echo(diff)
+        click.echo(f"Would prune unused entries from: {bib_path}")
+    else:
+        if backup:
+            backup_dir = state_dir / "backup"
+            backup_dir.mkdir(parents=True, exist_ok=True)
+            backup_bib = backup_dir / f"{bib_path.name}.bak"
+            backup_bib.write_text(bib_text, encoding="utf-8")
+            click.echo(f"Backup created: {backup_bib}")
+        bib_path.write_text(pruned_text, encoding="utf-8")
+        click.echo(f"Pruned unused entries from: {bib_path}")
+
+
 @main.command("fix")
 @click.argument("tex_file", required=False, type=click.Path(dir_okay=False, path_type=Path))
 @click.option(
@@ -218,8 +258,14 @@ def check_command(
     type=click.Path(dir_okay=False, path_type=Path),
     show_default=True,
 )
+@click.option("--prune-unused", is_flag=True, default=False, help="Remove uncited bibliography entries")
 def fix_command(
-    tex_file: Path | None, template_name: str | None, dry_run: bool, backup: bool, config_path: Path
+    tex_file: Path | None,
+    template_name: str | None,
+    dry_run: bool,
+    backup: bool,
+    config_path: Path,
+    prune_unused: bool,
 ) -> None:
     """Apply safe formatting fixes that do not change paper semantics."""
     cfg = load_project_config(config_path)
@@ -236,37 +282,47 @@ def fix_command(
     except ValueError as exc:
         raise click.ClickException(str(exc)) from exc
 
-    if not result.changed:
+    if not result.changed and not prune_unused:
         click.echo("No safe fixes needed.")
         return
 
     if dry_run:
-        diff = "\n".join(
-            difflib.unified_diff(
-                result.original_text.splitlines(),
-                result.fixed_text.splitlines(),
-                fromfile=f"{effective_tex_file}",
-                tofile=f"{effective_tex_file} (fixed)",
-                lineterm="",
+        diff = ""
+        if result.changed:
+            diff = "\n".join(
+                difflib.unified_diff(
+                    result.original_text.splitlines(),
+                    result.fixed_text.splitlines(),
+                    fromfile=f"{effective_tex_file}",
+                    tofile=f"{effective_tex_file} (fixed)",
+                    lineterm="",
+                )
             )
-        )
-        click.echo(diff)
-        click.echo(f"Dry run only. Planned fixes: {', '.join(sorted(set(result.applied_fixes)))}")
+            click.echo(diff)
+            click.echo(f"Dry run only. Planned fixes: {', '.join(sorted(set(result.applied_fixes)))}")
+        else:
+            click.echo("No safe fixes needed.")
+        if prune_unused:
+            _handle_prune_unused(effective_tex_file, cfg, state_dir, dry_run=True, backup=backup)
         _append_report(state_dir, "fix(dry-run)", diff or "No diff")
         return
 
-    if backup:
-        backup_dir = state_dir / "backup"
-        backup_dir.mkdir(parents=True, exist_ok=True)
-        backup_path = backup_dir / f"{effective_tex_file.name}.bak"
-        backup_path.write_text(result.original_text, encoding="utf-8")
-        click.echo(f"Backup created: {backup_path}")
+    if result.changed:
+        if backup:
+            backup_dir = state_dir / "backup"
+            backup_dir.mkdir(parents=True, exist_ok=True)
+            backup_path = backup_dir / f"{effective_tex_file.name}.bak"
+            backup_path.write_text(result.original_text, encoding="utf-8")
+            click.echo(f"Backup created: {backup_path}")
 
-    effective_tex_file.write_text(result.fixed_text, encoding="utf-8")
-    click.echo(f"Applied fixes: {', '.join(sorted(set(result.applied_fixes)))}")
-    click.echo(f"Updated file: {effective_tex_file}")
-    _append_report(
-        state_dir,
-        "fix",
-        f"Applied fixes: {', '.join(sorted(set(result.applied_fixes)))}\nUpdated file: {effective_tex_file}",
-    )
+        effective_tex_file.write_text(result.fixed_text, encoding="utf-8")
+        click.echo(f"Applied fixes: {', '.join(sorted(set(result.applied_fixes)))}")
+        click.echo(f"Updated file: {effective_tex_file}")
+        _append_report(
+            state_dir,
+            "fix",
+            f"Applied fixes: {', '.join(sorted(set(result.applied_fixes)))}\nUpdated file: {effective_tex_file}",
+        )
+
+    if prune_unused:
+        _handle_prune_unused(effective_tex_file, cfg, state_dir, dry_run=False, backup=backup)
