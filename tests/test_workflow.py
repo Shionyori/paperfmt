@@ -620,6 +620,85 @@ A \\\\
         assert "TAB-REF" in result.output
 
 
+def test_check_img_res_skips_without_pillow(monkeypatch) -> None:
+    """IMG-RES should be skipped (no diagnostic) when Pillow is not installed."""
+    import builtins
+
+    original_import = builtins.__import__
+
+    def mock_import(name, *args, **kwargs):
+        if name == "PIL" or name.startswith("PIL."):
+            raise ImportError("No PIL")
+        return original_import(name, *args, **kwargs)
+
+    monkeypatch.setattr(builtins, "__import__", mock_import)
+
+    runner = CliRunner()
+    with runner.isolated_filesystem():
+        runner.invoke(main, ["init", "--template", "ieee-conf"])
+        Path("main.tex").write_text(
+            """\\documentclass[conference]{IEEEtran}
+\\title{Demo}
+\\author{Anonymous\\thanks{Supported}}
+\\begin{document}
+\\maketitle
+\\begin{abstract}
+Demo.
+\\end{abstract}
+\\begin{IEEEkeywords}
+demo
+\\end{IEEEkeywords}
+\\begin{figure}
+\\includegraphics{demo.png}
+\\caption{A figure}
+\\end{figure}
+\\end{document}
+""",
+            encoding="utf-8",
+        )
+        result = runner.invoke(main, ["check"])
+        assert result.exit_code == 0
+        assert "IMG-RES" not in result.output
+
+
+def test_check_link_valid_skips_without_httpx(monkeypatch) -> None:
+    """LINK-VALID should be skipped when httpx is not installed."""
+    import builtins
+
+    original_import = builtins.__import__
+
+    def mock_import(name, *args, **kwargs):
+        if name == "httpx":
+            raise ImportError("No httpx")
+        return original_import(name, *args, **kwargs)
+
+    monkeypatch.setattr(builtins, "__import__", mock_import)
+
+    runner = CliRunner()
+    with runner.isolated_filesystem():
+        runner.invoke(main, ["init", "--template", "ieee-conf"])
+        Path("main.tex").write_text(
+            """\\documentclass[conference]{IEEEtran}
+\\title{Demo}
+\\author{Anonymous\\thanks{Supported}}
+\\begin{document}
+\\maketitle
+\\begin{abstract}
+Demo.
+\\end{abstract}
+\\begin{IEEEkeywords}
+demo
+\\end{IEEEkeywords}
+See \\url{https://example.com}.
+\\end{document}
+""",
+            encoding="utf-8",
+        )
+        result = runner.invoke(main, ["check"])
+        assert result.exit_code == 0
+        assert "LINK-VALID" not in result.output
+
+
 def test_check_multi_file_project() -> None:
     runner = CliRunner()
     with runner.isolated_filesystem():

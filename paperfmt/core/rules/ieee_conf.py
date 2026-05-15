@@ -478,6 +478,82 @@ def _check_unreferenced_labels(text: str) -> list[Diagnostic]:
     return diagnostics
 
 
+# IMG-RES and LINK-VALID (optional dependencies)
+INCLUDEGRAPHICS_RE = re.compile(r"\\includegraphics(?:\[[^\]]*\])?\s*\{([^}]+)\}")
+URL_CMD_RE = re.compile(r"\\(?:url|href)\{([^}]+)\}")
+
+
+def _check_image_resolution(text: str, tex_file: Path) -> list[Diagnostic]:
+    """Check that included images meet minimum resolution for print."""
+    try:
+        from PIL import Image  # type: ignore[import-untyped]
+    except ImportError:
+        return []
+
+    diagnostics: list[Diagnostic] = []
+    base_dir = tex_file.parent.resolve()
+
+    for match in INCLUDEGRAPHICS_RE.finditer(text):
+        img_name = match.group(1).strip()
+        img_path = base_dir / img_name
+        if not img_path.exists():
+            continue
+        try:
+            with Image.open(img_path) as img:
+                width_px, height_px = img.size
+            col_width_inches = 3.5
+            dpi_est = width_px / col_width_inches
+            if dpi_est < 150:
+                diagnostics.append(
+                    Diagnostic(
+                        rule_id="IMG-RES",
+                        severity="warning",
+                        message=f"Image '{img_name}' resolution is low (~{dpi_est:.0f} DPI at column width). Consider using 300 DPI for print.",
+                        line=_line_of_offset(text, match.start()),
+                    )
+                )
+        except Exception:
+            continue
+    return diagnostics
+
+
+def _check_link_validity(text: str) -> list[Diagnostic]:
+    """Check that URLs/DOIs are accessible (best-effort HEAD request)."""
+    try:
+        import httpx
+    except ImportError:
+        return []
+
+    diagnostics: list[Diagnostic] = []
+    for match in URL_CMD_RE.finditer(text):
+        url = match.group(1).strip()
+        if url.startswith("doi:"):
+            url = "https://doi.org/" + url[4:]
+        if not url.startswith(("http://", "https://")):
+            continue
+        try:
+            response = httpx.head(url, timeout=5, follow_redirects=True)
+            if response.status_code >= 400:
+                diagnostics.append(
+                    Diagnostic(
+                        rule_id="LINK-VALID",
+                        severity="warning",
+                        message=f"URL '{url[:60]}...' returned HTTP {response.status_code}.",
+                        line=_line_of_offset(text, match.start()),
+                    )
+                )
+        except Exception:
+            diagnostics.append(
+                Diagnostic(
+                    rule_id="LINK-VALID",
+                    severity="warning",
+                    message=f"URL '{url[:60]}...' is unreachable.",
+                    line=_line_of_offset(text, match.start()),
+                )
+            )
+    return diagnostics
+
+
 RULES: tuple[RulePlugin, ...] = (
     RulePlugin(
         "IEEE001",
@@ -597,5 +673,17 @@ RULES: tuple[RulePlugin, ...] = (
         "Check that equation labels are referenced in text",
         "warning",
         lambda text, tex_file, ruleset: [d for d in _check_unreferenced_labels(text) if d.rule_id == "EQ-REF"],
+    ),
+    RulePlugin(
+        "IMG-RES",
+        "Check included image resolution for print quality",
+        "warning",
+        lambda text, tex_file, ruleset: _check_image_resolution(text, tex_file),
+    ),
+    RulePlugin(
+        "LINK-VALID",
+        "Check URL/DOI accessibility",
+        "warning",
+        lambda text, tex_file, ruleset: _check_link_validity(text),
     ),
 )

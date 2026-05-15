@@ -22,6 +22,15 @@ dev = [
   "pytest>=8.2.0",
   "ruff>=0.11.0"
 ]
+image = [
+  "Pillow>=10.0"
+]
+link = [
+  "httpx>=0.27"
+]
+full = [
+  "paperfmt[image,link]"
+]
 
 [project.scripts]
 paperfmt = "paperfmt.cli:main"
