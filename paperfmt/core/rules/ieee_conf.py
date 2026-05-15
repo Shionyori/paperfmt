@@ -554,6 +554,43 @@ def _check_link_validity(text: str) -> list[Diagnostic]:
     return diagnostics
 
 
+# PAGE-LIMIT and SEC-DEPTH
+SECTION_DEPTH_RE = re.compile(r"\\(section|subsection|subsubsection|paragraph)\s*\{")
+SUBSECTION_RE = re.compile(r"\\subsubsection\s*\{")
+
+
+def _check_section_depth(text: str) -> list[Diagnostic]:
+    """Warn if section nesting goes too deep (past subsection)."""
+    diagnostics: list[Diagnostic] = []
+    for match in SUBSECTION_RE.finditer(text):
+        diagnostics.append(
+            Diagnostic(
+                rule_id="SEC-DEPTH",
+                severity="info",
+                message="Deep section nesting (subsubsection) detected; consider flattening for conference papers.",
+                line=_line_of_offset(text, match.start()),
+            )
+        )
+    return diagnostics
+
+
+def _check_page_limit(text: str) -> list[Diagnostic]:
+    """Estimate if document exceeds typical IEEE conference page limit (~6 pages)."""
+    diagnostics: list[Diagnostic] = []
+    lines = text.splitlines()
+    estimated_pages = len(lines) / 40.0
+    if estimated_pages > 8:
+        diagnostics.append(
+            Diagnostic(
+                rule_id="PAGE-LIMIT",
+                severity="warning",
+                message=f"Draft may exceed page limit (~{estimated_pages:.0f} pages estimated). IEEE conferences typically allow 6-8 pages.",
+                line=1,
+            )
+        )
+    return diagnostics
+
+
 RULES: tuple[RulePlugin, ...] = (
     RulePlugin(
         "IEEE001",
@@ -685,5 +722,17 @@ RULES: tuple[RulePlugin, ...] = (
         "Check URL/DOI accessibility",
         "warning",
         lambda text, tex_file, ruleset: _check_link_validity(text),
+    ),
+    RulePlugin(
+        "PAGE-LIMIT",
+        "Estimate page count against conference limits",
+        "warning",
+        lambda text, tex_file, ruleset: _check_page_limit(text),
+    ),
+    RulePlugin(
+        "SEC-DEPTH",
+        "Check section nesting depth",
+        "info",
+        lambda text, tex_file, ruleset: _check_section_depth(text),
     ),
 )

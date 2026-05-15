@@ -699,6 +699,56 @@ See \\url{https://example.com}.
         assert "LINK-VALID" not in result.output
 
 
+def test_check_sec_depth() -> None:
+    runner = CliRunner()
+    with runner.isolated_filesystem():
+        runner.invoke(main, ["init", "--template", "ieee-conf"])
+        Path("main.tex").write_text(
+            """\\documentclass[conference]{IEEEtran}
+\\title{Demo}
+\\author{Anonymous\\thanks{Supported}}
+\\begin{document}
+\\maketitle
+\\begin{abstract}
+Demo.
+\\end{abstract}
+\\begin{IEEEkeywords}
+demo
+\\end{IEEEkeywords}
+\\section{Intro}
+\\subsection{Background}
+\\subsubsection{Details}
+\\end{document}
+""",
+            encoding="utf-8",
+        )
+        result = runner.invoke(main, ["check"])
+        assert result.exit_code == 0
+        assert "SEC-DEPTH" in result.output
+
+
+def test_check_page_limit() -> None:
+    runner = CliRunner()
+    with runner.isolated_filesystem():
+        runner.invoke(main, ["init", "--template", "ieee-conf"])
+        long_content = (
+            "\\documentclass[conference]{IEEEtran}\n"
+            "\\title{Demo}\n"
+            "\\author{Anonymous\\thanks{Supported}}\n"
+            "\\begin{document}\n"
+            "\\maketitle\n"
+            "\\begin{abstract}\nDemo.\n\\end{abstract}\n"
+            "\\begin{IEEEkeywords}\ndemo\n\\end{IEEEkeywords}\n"
+        )
+        long_content += "A paragraph of text.\n" * 500
+        long_content += "\\end{document}\n"
+
+        Path("main.tex").write_text(long_content, encoding="utf-8")
+        result = runner.invoke(main, ["check"])
+        assert result.exit_code == 0
+        assert "PAGE-LIMIT" in result.output
+
+
 def test_check_multi_file_project() -> None:
     runner = CliRunner()
     with runner.isolated_filesystem():
