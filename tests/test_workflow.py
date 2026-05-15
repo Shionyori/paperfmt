@@ -498,6 +498,128 @@ E = mc^2
         assert "IEEE010" in result.output
 
 
+def test_check_fig_ref_unreferenced() -> None:
+    runner = CliRunner()
+    with runner.isolated_filesystem():
+        runner.invoke(main, ["init", "--template", "ieee-conf"])
+        Path("main.tex").write_text(
+            """\\documentclass[conference]{IEEEtran}
+\\title{Demo}
+\\author{Anonymous\\thanks{Supported}}
+\\begin{document}
+\\maketitle
+\\begin{abstract}
+Demo.
+\\end{abstract}
+\\begin{IEEEkeywords}
+demo
+\\end{IEEEkeywords}
+\\begin{figure}
+\\includegraphics{demo.png}
+\\caption{A figure}
+\\label{fig:demo}
+\\end{figure}
+\\end{document}
+""",
+            encoding="utf-8",
+        )
+        result = runner.invoke(main, ["check"])
+        assert result.exit_code == 0
+        assert "FIG-REF" in result.output
+
+
+def test_check_fig_ref_referenced_no_warning() -> None:
+    runner = CliRunner()
+    with runner.isolated_filesystem():
+        runner.invoke(main, ["init", "--template", "ieee-conf"])
+        Path("main.tex").write_text(
+            """\\documentclass[conference]{IEEEtran}
+\\title{Demo}
+\\author{Anonymous\\thanks{Supported}}
+\\begin{document}
+\\maketitle
+\\begin{abstract}
+Demo.
+\\end{abstract}
+\\begin{IEEEkeywords}
+demo
+\\end{IEEEkeywords}
+\\begin{figure}
+\\includegraphics{demo.png}
+\\caption{A figure}
+\\label{fig:demo}
+\\end{figure}
+See Fig.~\\ref{fig:demo}.
+\\end{document}
+""",
+            encoding="utf-8",
+        )
+        result = runner.invoke(main, ["check"])
+        assert result.exit_code == 0
+        assert "FIG-REF" not in result.output
+
+
+def test_check_eq_ref_unreferenced() -> None:
+    runner = CliRunner()
+    with runner.isolated_filesystem():
+        runner.invoke(main, ["init", "--template", "ieee-conf"])
+        Path("main.tex").write_text(
+            """\\documentclass[conference]{IEEEtran}
+\\title{Demo}
+\\author{Anonymous\\thanks{Supported}}
+\\begin{document}
+\\maketitle
+\\begin{abstract}
+Demo.
+\\end{abstract}
+\\begin{IEEEkeywords}
+demo
+\\end{IEEEkeywords}
+\\begin{equation}
+E = mc^2
+\\label{eq:energy}
+\\end{equation}
+\\end{document}
+""",
+            encoding="utf-8",
+        )
+        result = runner.invoke(main, ["check"])
+        assert result.exit_code == 0
+        assert "EQ-REF" in result.output
+
+
+def test_check_tab_ref_unreferenced() -> None:
+    runner = CliRunner()
+    with runner.isolated_filesystem():
+        runner.invoke(main, ["init", "--template", "ieee-conf"])
+        Path("main.tex").write_text(
+            """\\documentclass[conference]{IEEEtran}
+\\title{Demo}
+\\author{Anonymous\\thanks{Supported}}
+\\begin{document}
+\\maketitle
+\\begin{abstract}
+Demo.
+\\end{abstract}
+\\begin{IEEEkeywords}
+demo
+\\end{IEEEkeywords}
+\\begin{table}
+\\caption{Results}
+\\label{tab:results}
+\\begin{tabular}{c}
+A \\\\
+\\end{tabular}
+\\end{table}
+\\end{document}
+""",
+            encoding="utf-8",
+        )
+        result = runner.invoke(main, ["check"])
+        assert result.exit_code == 0
+        assert "TAB-REF" in result.output
+
+
 def test_check_multi_file_project() -> None:
     runner = CliRunner()
     with runner.isolated_filesystem():

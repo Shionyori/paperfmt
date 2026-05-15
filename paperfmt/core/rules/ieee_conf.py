@@ -442,6 +442,42 @@ def _fix_rule_009(text: str) -> tuple[str, bool]:
     return updated, updated != text
 
 
+# Cross-reference rules: FIG-REF, TAB-REF, EQ-REF
+LABEL_IN_ENV_RE = re.compile(
+    r"\\(?:begin)\{(figure|table|equation)\*?\}(.*?)\\end\{\1\*?\}",
+    re.DOTALL,
+)
+LABEL_RE = re.compile(r"\\label\{([^}]+)\}")
+REF_RE = re.compile(r"\\(?:ref|eqref)\{([^}]+)\}")
+
+
+def _check_unreferenced_labels(text: str) -> list[Diagnostic]:
+    """Check that labels inside figure/table/equation are referenced in text."""
+    diagnostics: list[Diagnostic] = []
+    env_type_map = {"figure": "FIG-REF", "table": "TAB-REF", "equation": "EQ-REF"}
+    env_names = {"figure": "Figure", "table": "Table", "equation": "Equation"}
+
+    for env_match in LABEL_IN_ENV_RE.finditer(text):
+        env_type = env_match.group(1)
+        if env_type not in env_type_map:
+            continue
+        env_body = env_match.group(2)
+        for label_match in LABEL_RE.finditer(env_body):
+            label = label_match.group(1).strip()
+            outside_text = text[: env_match.start()] + text[env_match.end() :]
+            ref_pattern = re.compile(r"\\(?:ref|eqref)\{" + re.escape(label) + r"\}")
+            if not ref_pattern.search(outside_text):
+                diagnostics.append(
+                    Diagnostic(
+                        rule_id=env_type_map[env_type],
+                        severity="warning",
+                        message=f"{env_names[env_type]} label '{label}' is not referenced in text.",
+                        line=_line_of_offset(text, label_match.start()),
+                    )
+                )
+    return diagnostics
+
+
 RULES: tuple[RulePlugin, ...] = (
     RulePlugin(
         "IEEE001",
@@ -543,5 +579,23 @@ RULES: tuple[RulePlugin, ...] = (
         "Equation should end with punctuation",
         "warning",
         lambda text, tex_file, ruleset: _check_equation_punctuation(text),
+    ),
+    RulePlugin(
+        "FIG-REF",
+        "Check that figure labels are referenced in text",
+        "warning",
+        lambda text, tex_file, ruleset: [d for d in _check_unreferenced_labels(text) if d.rule_id == "FIG-REF"],
+    ),
+    RulePlugin(
+        "TAB-REF",
+        "Check that table labels are referenced in text",
+        "warning",
+        lambda text, tex_file, ruleset: [d for d in _check_unreferenced_labels(text) if d.rule_id == "TAB-REF"],
+    ),
+    RulePlugin(
+        "EQ-REF",
+        "Check that equation labels are referenced in text",
+        "warning",
+        lambda text, tex_file, ruleset: [d for d in _check_unreferenced_labels(text) if d.rule_id == "EQ-REF"],
     ),
 )
