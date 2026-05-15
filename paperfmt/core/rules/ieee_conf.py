@@ -250,7 +250,10 @@ def _check_ieee_structure(text: str) -> list[Diagnostic]:
                 Diagnostic(
                     rule_id="IEEE012",
                     severity="info",
-                    message="Consider adding \\balance or \\balancest authors before \\end{document} for two-column IEEE format.",
+                    message=(
+                        "Consider adding \\balance or \\balancest authors "
+                        "before \\end{document} for two-column IEEE format."
+                    ),
                     line=_line_of_offset(text, bib_match.start()),
                 )
             )
@@ -508,7 +511,11 @@ def _check_image_resolution(text: str, tex_file: Path) -> list[Diagnostic]:
                     Diagnostic(
                         rule_id="IMG-RES",
                         severity="warning",
-                        message=f"Image '{img_name}' resolution is low (~{dpi_est:.0f} DPI at column width). Consider using 300 DPI for print.",
+                        message=(
+                            f"Image '{img_name}' resolution is low "
+                            f"(~{dpi_est:.0f} DPI at column width). "
+                            "Consider using 300 DPI for print."
+                        ),
                         line=_line_of_offset(text, match.start()),
                     )
                 )
@@ -584,7 +591,10 @@ def _check_page_limit(text: str) -> list[Diagnostic]:
             Diagnostic(
                 rule_id="PAGE-LIMIT",
                 severity="warning",
-                message=f"Draft may exceed page limit (~{estimated_pages:.0f} pages estimated). IEEE conferences typically allow 6-8 pages.",
+                message=(
+                    f"Draft may exceed page limit (~{estimated_pages:.0f} pages estimated). "
+                    "IEEE conferences typically allow 6-8 pages."
+                ),
                 line=1,
             )
         )
