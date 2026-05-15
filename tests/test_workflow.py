@@ -416,6 +416,88 @@ demo
         assert "IEEE012" in result.output
 
 
+def test_check_ieee009_cite_separator() -> None:
+    runner = CliRunner()
+    with runner.isolated_filesystem():
+        runner.invoke(main, ["init", "--template", "ieee-conf"])
+        Path("main.tex").write_text(
+            """\\documentclass[conference]{IEEEtran}
+\\title{Demo}
+\\author{Anonymous\\thanks{Supported}}
+\\begin{document}
+\\maketitle
+\\begin{abstract}
+Demo.
+\\end{abstract}
+\\begin{IEEEkeywords}
+demo
+\\end{IEEEkeywords}
+See \\cite{key1 key2 key3}.
+\\end{document}
+""",
+            encoding="utf-8",
+        )
+        result = runner.invoke(main, ["check"])
+        assert result.exit_code == 0
+        assert "IEEE009" in result.output
+
+
+def test_fix_ieee009_cite_separator() -> None:
+    runner = CliRunner()
+    with runner.isolated_filesystem():
+        runner.invoke(main, ["init", "--template", "ieee-conf"])
+        tex = Path("main.tex")
+        tex.write_text(
+            """\\documentclass[conference]{IEEEtran}
+\\title{Demo}
+\\author{Anonymous\\thanks{Supported}}
+\\begin{document}
+\\maketitle
+\\begin{abstract}
+Demo.
+\\end{abstract}
+\\begin{IEEEkeywords}
+demo
+\\end{IEEEkeywords}
+See \\cite{key1 key2 key3}.
+\\end{document}
+""",
+            encoding="utf-8",
+        )
+        result = runner.invoke(main, ["fix"])
+        assert result.exit_code == 0
+        updated = tex.read_text(encoding="utf-8")
+        assert "\\cite{key1, key2, key3}" in updated
+
+
+def test_check_ieee010_equation_punctuation() -> None:
+    runner = CliRunner()
+    with runner.isolated_filesystem():
+        runner.invoke(main, ["init", "--template", "ieee-conf"])
+        Path("main.tex").write_text(
+            """\\documentclass[conference]{IEEEtran}
+\\title{Demo}
+\\author{Anonymous\\thanks{Supported}}
+\\begin{document}
+\\maketitle
+\\begin{abstract}
+Demo.
+\\end{abstract}
+\\begin{IEEEkeywords}
+demo
+\\end{IEEEkeywords}
+\\begin{equation}
+E = mc^2
+\\end{equation}
+\\end{document}
+""",
+            encoding="utf-8",
+        )
+        result = runner.invoke(main, ["check"])
+        assert result.exit_code == 0
+        assert "IEEE010" in result.output
+
+
 def test_check_multi_file_project() -> None:
     runner = CliRunner()
     with runner.isolated_filesystem():

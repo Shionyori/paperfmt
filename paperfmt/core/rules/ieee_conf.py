@@ -382,6 +382,66 @@ def _fix_rule_011(text: str) -> tuple[str, bool]:
     return updated, True
 
 
+# IEEE009: cite keys separated by space instead of comma
+CITE_SPACE_SEP_RE = re.compile(r"\\cite\s*\{([^}]+)\}")
+
+
+def _check_cite_separator(text: str) -> list[Diagnostic]:
+    diagnostics: list[Diagnostic] = []
+    for match in CITE_SPACE_SEP_RE.finditer(text):
+        keys_text = match.group(1).strip()
+        if not keys_text:
+            continue
+        parts = [k.strip() for k in keys_text.split(",")]
+        for part in parts:
+            if " " in part.strip():
+                diagnostics.append(
+                    Diagnostic(
+                        rule_id="IEEE009",
+                        severity="warning",
+                        message="\\cite keys should be comma-separated, not space-separated.",
+                        line=_line_of_offset(text, match.start()),
+                        can_fix=True,
+                    )
+                )
+                break
+    return diagnostics
+
+
+# IEEE010: equation lacks trailing punctuation
+EQ_ENV_RE = re.compile(r"\\begin\{equation\*?\}(.*?)\\end\{equation\*?\}", re.DOTALL)
+EQ_PUNCT_RE = re.compile(r"[.,;:!?]\s*$")
+
+
+def _check_equation_punctuation(text: str) -> list[Diagnostic]:
+    diagnostics: list[Diagnostic] = []
+    for match in EQ_ENV_RE.finditer(text):
+        body = match.group(1).rstrip()
+        body_no_label = re.sub(r"\\label\{[^}]*\}\s*$", "", body).rstrip()
+        if body_no_label and not EQ_PUNCT_RE.search(body_no_label):
+            diagnostics.append(
+                Diagnostic(
+                    rule_id="IEEE010",
+                    severity="warning",
+                    message="Equation should end with punctuation (comma or period).",
+                    line=_line_of_offset(text, match.start()),
+                )
+            )
+    return diagnostics
+
+
+def _fix_rule_009(text: str) -> tuple[str, bool]:
+    """Replace space-separated cite keys with comma-separated."""
+
+    def _fix_cite(match: re.Match[str]) -> str:
+        keys_text = match.group(1)
+        keys = [k.strip() for k in keys_text.replace(",", " ").split()]
+        return "\\cite{" + ", ".join(keys) + "}"
+
+    updated = CITE_SPACE_SEP_RE.sub(_fix_cite, text)
+    return updated, updated != text
+
+
 RULES: tuple[RulePlugin, ...] = (
     RulePlugin(
         "IEEE001",
@@ -470,5 +530,18 @@ RULES: tuple[RulePlugin, ...] = (
         "Check for missing column balance command",
         "info",
         lambda text, tex_file, ruleset: [d for d in _check_ieee_structure(text) if d.rule_id == "IEEE012"],
+    ),
+    RulePlugin(
+        "IEEE009",
+        "\\cite keys should be comma-separated",
+        "warning",
+        lambda text, tex_file, ruleset: _check_cite_separator(text),
+        _fix_rule_009,
+    ),
+    RulePlugin(
+        "IEEE010",
+        "Equation should end with punctuation",
+        "warning",
+        lambda text, tex_file, ruleset: _check_equation_punctuation(text),
     ),
 )
