@@ -63,7 +63,7 @@ def _list_rules(template: str, ruleset: RuleSet) -> None:
         click.echo(f"          {plugin.description}")
 
 
-def _render_text_report(report: object) -> None:
+def _render_text_report(report: CheckReport) -> None:
     diagnostics = report.diagnostics
     if not diagnostics:
         click.echo("No issues found.")
@@ -205,9 +205,7 @@ def check_command(
     raise SystemExit(exit_code)
 
 
-def _handle_prune_unused(
-    tex_file: Path, cfg: object, state_dir: Path, dry_run: bool, backup: bool
-) -> None:
+def _handle_prune_unused(tex_file: Path, cfg: object, state_dir: Path, dry_run: bool, backup: bool) -> None:
     from paperfmt.core.rules.ieee_conf import prune_unused_bib_entries
 
     bib_path = (tex_file.parent / cfg.bibliography).resolve()
@@ -215,9 +213,7 @@ def _handle_prune_unused(
         return
 
     bib_text = bib_path.read_text(encoding="utf-8")
-    pruned_text, bib_changed = prune_unused_bib_entries(
-        resolve_includes(tex_file), bib_text
-    )
+    pruned_text, bib_changed = prune_unused_bib_entries(resolve_includes(tex_file), bib_text)
     if not bib_changed:
         return
 

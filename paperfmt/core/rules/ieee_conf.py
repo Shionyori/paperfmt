@@ -205,7 +205,6 @@ def _check_missing_doi_from_config(text: str, tex_file: Path, bibliography: str)
 
 BIBLIOGRAPHY_CMD_RE = re.compile(r"\\bibliography\s*\{([^}]+)\}")
 BIB_STYLE_RE = re.compile(r"\\bibliographystyle\s*\{([^}]+)\}")
-PARSTART_RE = re.compile(r"\\IEEEPARstart")
 BALANCE_RE = re.compile(r"\\(?:balance|balancest?authors|IEEEtriggeratref|IEEEtriggercmd)\b")
 
 
@@ -244,7 +243,7 @@ def _check_ieee_structure(text: str) -> list[Diagnostic]:
     end_doc = text.find("\\end{document}")
     bib_match = BIBLIOGRAPHY_CMD_RE.search(text)
     if bib_match:
-        between = text[bib_match.end():end_doc] if end_doc > bib_match.end() else ""
+        between = text[bib_match.end() : end_doc] if end_doc > bib_match.end() else ""
         if not BALANCE_RE.search(between):
             diagnostics.append(
                 Diagnostic(
@@ -331,10 +330,7 @@ def _fix_caption_order_for_environment(block: str, is_figure: bool) -> tuple[str
         return block, False
 
     caption_line = lines.pop(cap_idx)
-    if is_figure:
-        insert_at = anchor_idx if cap_idx > anchor_idx else anchor_idx + 1
-    else:
-        insert_at = anchor_idx if cap_idx > anchor_idx else max(anchor_idx - 1, 0)
+    insert_at = anchor_idx + 1 if is_figure else anchor_idx
 
     lines.insert(insert_at, caption_line)
     return "\n".join(lines), True
@@ -451,7 +447,6 @@ LABEL_IN_ENV_RE = re.compile(
     re.DOTALL,
 )
 LABEL_RE = re.compile(r"\\label\{([^}]+)\}")
-REF_RE = re.compile(r"\\(?:ref|eqref)\{([^}]+)\}")
 
 
 def _check_unreferenced_labels(text: str) -> list[Diagnostic]:
@@ -503,7 +498,7 @@ def _check_image_resolution(text: str, tex_file: Path) -> list[Diagnostic]:
             continue
         try:
             with Image.open(img_path) as img:
-                width_px, height_px = img.size
+                width_px, _ = img.size
             col_width_inches = 3.5
             dpi_est = width_px / col_width_inches
             if dpi_est < 150:
@@ -562,7 +557,6 @@ def _check_link_validity(text: str) -> list[Diagnostic]:
 
 
 # PAGE-LIMIT and SEC-DEPTH
-SECTION_DEPTH_RE = re.compile(r"\\(section|subsection|subsubsection|paragraph)\s*\{")
 SUBSECTION_RE = re.compile(r"\\subsubsection\s*\{")
 
 
