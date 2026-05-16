@@ -1037,3 +1037,186 @@ Recent advances [1] show progress.
         result = runner.invoke(main, ["check"])
         assert result.exit_code == 0
         assert "CITE-MANUAL" in result.output
+
+
+# ---------------------------------------------------------------------------
+# NeurIPS template integration tests
+# ---------------------------------------------------------------------------
+
+_NEURIPS_COMPLIANT = """\\documentclass{neurips_2024}
+\\usepackage[preprint]{neurips_2024}
+\\title{Demo}
+\\author{Anonymous}
+\\begin{document}
+\\maketitle
+\\begin{abstract}
+Demo.
+\\end{abstract}
+\\section{Introduction}
+Intro text.
+\\section{Author checklist}
+Checklist items.
+\\bibliographystyle{plain}
+\\bibliography{references}
+\\balance
+\\end{document}
+"""
+
+
+def test_neurips_check_compliant_no_errors() -> None:
+    runner = CliRunner()
+    with runner.isolated_filesystem():
+        runner.invoke(main, ["init", "--template", "neurips"])
+        Path("main.tex").write_text(_NEURIPS_COMPLIANT, encoding="utf-8")
+        result = runner.invoke(main, ["check", "--template", "neurips"])
+        assert "NEUR001" not in result.output
+        assert "NEUR002" not in result.output
+
+
+def test_neurips_check_missing_documentclass() -> None:
+    runner = CliRunner()
+    with runner.isolated_filesystem():
+        runner.invoke(main, ["init", "--template", "neurips"])
+        Path("main.tex").write_text(
+            """\\documentclass{article}
+\\usepackage[preprint]{neurips_2024}
+\\title{Demo}
+\\author{Anonymous}
+\\begin{document}
+\\maketitle
+\\begin{abstract}
+Demo.
+\\end{abstract}
+\\section{Introduction}
+Intro text.
+\\section{Author checklist}
+Checklist items.
+\\bibliographystyle{plain}
+\\bibliography{references}
+\\balance
+\\end{document}
+""",
+            encoding="utf-8",
+        )
+        result = runner.invoke(main, ["check", "--template", "neurips"])
+        assert result.exit_code != 0
+        assert "NEUR001" in result.output
+
+
+def test_neurips_check_missing_abstract() -> None:
+    runner = CliRunner()
+    with runner.isolated_filesystem():
+        runner.invoke(main, ["init", "--template", "neurips"])
+        Path("main.tex").write_text(
+            """\\documentclass{neurips_2024}
+\\usepackage[preprint]{neurips_2024}
+\\title{Demo}
+\\author{Anonymous}
+\\begin{document}
+\\maketitle
+\\section{Introduction}
+Intro text.
+\\section{Author checklist}
+Checklist items.
+\\bibliographystyle{plain}
+\\bibliography{references}
+\\balance
+\\end{document}
+""",
+            encoding="utf-8",
+        )
+        result = runner.invoke(main, ["check", "--template", "neurips"])
+        assert result.exit_code != 0
+        assert "NEUR007" in result.output
+
+
+def test_neurips_check_bare_cite() -> None:
+    runner = CliRunner()
+    with runner.isolated_filesystem():
+        runner.invoke(main, ["init", "--template", "neurips"])
+        Path("main.tex").write_text(
+            """\\documentclass{neurips_2024}
+\\usepackage[preprint]{neurips_2024}
+\\title{Demo}
+\\author{Anonymous}
+\\begin{document}
+\\maketitle
+\\begin{abstract}
+Demo.
+\\end{abstract}
+\\section{Introduction}
+See \\cite{some_ref}.
+\\section{Author checklist}
+Checklist items.
+\\bibliographystyle{plain}
+\\bibliography{references}
+\\balance
+\\end{document}
+""",
+            encoding="utf-8",
+        )
+        result = runner.invoke(main, ["check", "--template", "neurips"])
+        assert result.exit_code == 0
+        assert "NEUR006" in result.output
+
+
+def test_neurips_fix_bare_cite_to_citep() -> None:
+    runner = CliRunner()
+    with runner.isolated_filesystem():
+        runner.invoke(main, ["init", "--template", "neurips"])
+        tex = Path("main.tex")
+        tex.write_text(
+            """\\documentclass{neurips_2024}
+\\usepackage[preprint]{neurips_2024}
+\\title{Demo}
+\\author{Anonymous}
+\\begin{document}
+\\maketitle
+\\begin{abstract}
+Demo.
+\\end{abstract}
+\\section{Introduction}
+See \\cite{some_ref}.
+\\section{Author checklist}
+Checklist items.
+\\bibliographystyle{plain}
+\\bibliography{references}
+\\balance
+\\end{document}
+""",
+            encoding="utf-8",
+        )
+        result = runner.invoke(main, ["fix", "--template", "neurips"])
+        assert result.exit_code == 0
+        updated = tex.read_text(encoding="utf-8")
+        assert "\\citep{some_ref}" in updated
+
+
+def test_neurips_common_rules_present() -> None:
+    runner = CliRunner()
+    with runner.isolated_filesystem():
+        runner.invoke(main, ["init", "--template", "neurips"])
+        Path("main.tex").write_text(
+            """\\documentclass{neurips_2024}
+\\usepackage[preprint]{neurips_2024}
+\\title{Demo}
+\\author{Anonymous}
+\\begin{document}
+\\maketitle
+\\begin{abstract}
+Demo.
+\\end{abstract}
+\\section{Introduction}
+Recent advances [1] show progress.
+\\section{Author checklist}
+Checklist items.
+\\bibliographystyle{plain}
+\\bibliography{references}
+\\balance
+\\end{document}
+""",
+            encoding="utf-8",
+        )
+        result = runner.invoke(main, ["check", "--template", "neurips"])
+        assert result.exit_code == 0
+        assert "CITE-MANUAL" in result.output
