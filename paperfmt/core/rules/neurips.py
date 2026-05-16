@@ -172,7 +172,7 @@ def _fix_neur006(text: str) -> tuple[str, bool]:
 
 def _check_neur008(text: str) -> list[Diagnostic]:
     diagnostics: list[Diagnostic] = []
-    if "\\section{Introduction}" not in text:
+    if "\\section{Introduction}" not in text and "\\section*{Introduction}" not in text:
         diagnostics.append(
             Diagnostic(
                 rule_id="NEUR008",
@@ -229,7 +229,8 @@ def _fix_neur011(text: str) -> tuple[str, bool]:
     def _fix_cite(match: re.Match[str]) -> str:
         keys_text = match.group(1)
         keys = [k.strip() for k in keys_text.replace(",", " ").split()]
-        return match.group(0).replace(match.group(1), ", ".join(keys))
+        cmd = match.group(0)[: match.group(0).index("{")]
+        return cmd + "{" + ", ".join(keys) + "}"
 
     updated = _CITE_NATBIB_RE.sub(_fix_cite, text)
     return updated, updated != text

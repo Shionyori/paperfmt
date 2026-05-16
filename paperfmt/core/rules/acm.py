@@ -24,7 +24,6 @@ ACM_DOCUMENTCLASS_RE = re.compile(r"\\documentclass(?:\[[^\]]*\])?\s*\{acmart\}"
 ACM_KEYWORDS_RE = re.compile(r"\\keywords\s*\{")
 ACM_CCSDESC_RE = re.compile(r"\\ccsdesc\s*\{")
 ACM_THANKS_RE = re.compile(r"\\thanks\s*\{")
-ACM_TITLENOTE_RE = re.compile(r"\\titlenote\s*\{")
 ACM_AFFILIATION_RE = re.compile(r"\\affiliation\s*\{")
 ACM_EMAIL_RE = re.compile(r"\\email\s*\{")
 ACM_RECEIVED_RE = re.compile(r"\\received\s*\{")
