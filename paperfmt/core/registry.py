@@ -4,7 +4,12 @@ DEFAULT_TEMPLATE = "ieee-conf"
 
 TEMPLATE_ALIASES: dict[str, str] = {}
 
-CANONICAL_TEMPLATES: tuple[str, ...] = (DEFAULT_TEMPLATE,)
+CANONICAL_TEMPLATES: tuple[str, ...] = (
+    DEFAULT_TEMPLATE,       # "ieee-conf"
+    "acm-conf",
+    "neurips",
+    "acl-conf",
+)
 
 
 def normalize_template(template: str) -> str:
