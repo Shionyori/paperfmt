@@ -6,13 +6,13 @@ from paperfmt.core.models import Diagnostic
 from paperfmt.core.rules.base import RulePlugin
 from paperfmt.core.rules.common import (
     BIBLIOGRAPHY_CMD_RE,
+    COMMON_RULES,
     check_figure_caption_order,
-    check_table_caption_order,
     check_required_env,
+    check_table_caption_order,
     fix_figure_caption_order,
     fix_table_caption_order,
     line_of_offset,
-    COMMON_RULES,
 )
 
 # ---------------------------------------------------------------------------

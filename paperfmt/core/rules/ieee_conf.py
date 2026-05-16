@@ -6,20 +6,19 @@ from pathlib import Path
 from paperfmt.core.models import Diagnostic
 from paperfmt.core.rules.base import RulePlugin
 from paperfmt.core.rules.common import (
-    BIBLIOGRAPHY_CMD_RE,
-    BIB_STYLE_RE,
     BIB_ENTRY_KEY_RE,
-    extract_cited_keys,
-    check_figure_caption_order,
-    check_table_caption_order,
+    BIBLIOGRAPHY_CMD_RE,
+    COMMON_RULES,
     check_bibliographystyle,
+    check_figure_caption_order,
     check_forbidden_cite_pattern,
     check_required_env,
+    check_table_caption_order,
+    extract_cited_keys,
+    fix_bibliographystyle,
     fix_figure_caption_order,
     fix_table_caption_order,
-    fix_bibliographystyle,
     line_of_offset,
-    COMMON_RULES,
 )
 
 # ---------------------------------------------------------------------------

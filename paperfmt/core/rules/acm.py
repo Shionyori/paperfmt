@@ -5,15 +5,15 @@ import re
 from paperfmt.core.models import Diagnostic
 from paperfmt.core.rules.base import RulePlugin
 from paperfmt.core.rules.common import (
-    check_figure_caption_order,
-    check_table_caption_order,
+    COMMON_RULES,
     check_bibliographystyle,
+    check_figure_caption_order,
     check_forbidden_cite_pattern,
+    check_table_caption_order,
+    fix_bibliographystyle,
     fix_figure_caption_order,
     fix_table_caption_order,
-    fix_bibliographystyle,
     line_of_offset,
-    COMMON_RULES,
 )
 
 # ---------------------------------------------------------------------------
