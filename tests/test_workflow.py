@@ -847,3 +847,193 @@ def test_check_markdown_format() -> None:
         assert "## paperfmt Check Report" in result.output
         assert "| Severity | Rule | Line | Message | Fixable |" in result.output
         assert "IEEE001" in result.output
+
+
+# ---------------------------------------------------------------------------
+# ACM template integration tests
+# ---------------------------------------------------------------------------
+
+_ACM_COMPLIANT = """\\documentclass[sigconf]{acmart}
+\\title{Demo}
+\\author{Alice}
+\\affiliation{University}
+\\email{alice@example.com}
+\\keywords{testing, tools}
+\\ccsdesc[500]{Software}
+\\received{2024-01-01}
+\\accepted{2024-03-01}
+\\begin{document}
+\\maketitle
+\\begin{abstract}
+Demo.
+\\end{abstract}
+\\bibliographystyle{ACM-Reference-Format}
+\\bibliography{references}
+\\end{document}
+"""
+
+
+def test_acm_check_compliant_no_diagnostics() -> None:
+    runner = CliRunner()
+    with runner.isolated_filesystem():
+        runner.invoke(main, ["init", "--template", "acm-conf"])
+        Path("main.tex").write_text(_ACM_COMPLIANT, encoding="utf-8")
+        result = runner.invoke(main, ["check"])
+        assert result.exit_code == 0
+        assert "ACM001" not in result.output
+        assert "ACM003" not in result.output
+
+
+def test_acm_check_missing_documentclass() -> None:
+    runner = CliRunner()
+    with runner.isolated_filesystem():
+        runner.invoke(main, ["init", "--template", "acm-conf"])
+        Path("main.tex").write_text(
+            """\\documentclass{article}
+\\title{Demo}
+\\author{Alice}
+\\affiliation{University}
+\\email{alice@example.com}
+\\keywords{testing}
+\\ccsdesc[500]{Software}
+\\received{2024-01-01}
+\\accepted{2024-03-01}
+\\begin{document}
+\\maketitle
+\\begin{abstract}
+Demo.
+\\end{abstract}
+\\bibliographystyle{ACM-Reference-Format}
+\\bibliography{references}
+\\end{document}
+""",
+            encoding="utf-8",
+        )
+        result = runner.invoke(main, ["check"])
+        assert result.exit_code != 0
+        assert "ACM001" in result.output
+
+
+def test_acm_check_missing_bibliographystyle() -> None:
+    runner = CliRunner()
+    with runner.isolated_filesystem():
+        runner.invoke(main, ["init", "--template", "acm-conf"])
+        Path("main.tex").write_text(
+            """\\documentclass[sigconf]{acmart}
+\\title{Demo}
+\\author{Alice}
+\\affiliation{University}
+\\email{alice@example.com}
+\\keywords{testing}
+\\ccsdesc[500]{Software}
+\\received{2024-01-01}
+\\accepted{2024-03-01}
+\\begin{document}
+\\maketitle
+\\begin{abstract}
+Demo.
+\\end{abstract}
+\\bibliography{references}
+\\end{document}
+""",
+            encoding="utf-8",
+        )
+        result = runner.invoke(main, ["check"])
+        assert result.exit_code != 0
+        assert "ACM003" in result.output
+
+
+def test_acm_check_thanks_instead_of_titlenote() -> None:
+    runner = CliRunner()
+    with runner.isolated_filesystem():
+        runner.invoke(main, ["init", "--template", "acm-conf"])
+        Path("main.tex").write_text(
+            """\\documentclass[sigconf]{acmart}
+\\title{Demo}
+\\author{Alice}
+\\thanks{Funded by grant}
+\\affiliation{University}
+\\email{alice@example.com}
+\\keywords{testing}
+\\ccsdesc[500]{Software}
+\\received{2024-01-01}
+\\accepted{2024-03-01}
+\\begin{document}
+\\maketitle
+\\begin{abstract}
+Demo.
+\\end{abstract}
+\\bibliographystyle{ACM-Reference-Format}
+\\bibliography{references}
+\\end{document}
+""",
+            encoding="utf-8",
+        )
+        result = runner.invoke(main, ["check"])
+        assert result.exit_code == 0
+        assert "ACM005" in result.output
+
+
+def test_acm_fix_thanks_to_titlenote() -> None:
+    runner = CliRunner()
+    with runner.isolated_filesystem():
+        runner.invoke(main, ["init", "--template", "acm-conf"])
+        tex = Path("main.tex")
+        tex.write_text(
+            """\\documentclass[sigconf]{acmart}
+\\title{Demo}
+\\author{Alice}
+\\thanks{Funded by grant}
+\\affiliation{University}
+\\email{alice@example.com}
+\\keywords{testing}
+\\ccsdesc[500]{Software}
+\\received{2024-01-01}
+\\accepted{2024-03-01}
+\\begin{document}
+\\maketitle
+\\begin{abstract}
+Demo.
+\\end{abstract}
+\\bibliographystyle{ACM-Reference-Format}
+\\bibliography{references}
+\\end{document}
+""",
+            encoding="utf-8",
+        )
+        result = runner.invoke(main, ["fix"])
+        assert result.exit_code == 0
+        updated = tex.read_text(encoding="utf-8")
+        assert "\\thanks" not in updated
+        assert "\\titlenote{" in updated
+
+
+def test_acm_common_rules_present() -> None:
+    runner = CliRunner()
+    with runner.isolated_filesystem():
+        runner.invoke(main, ["init", "--template", "acm-conf"])
+        Path("main.tex").write_text(
+            """\\documentclass[sigconf]{acmart}
+\\title{Demo}
+\\author{Alice}
+\\affiliation{University}
+\\email{alice@example.com}
+\\keywords{testing}
+\\ccsdesc[500]{Software}
+\\received{2024-01-01}
+\\accepted{2024-03-01}
+\\begin{document}
+\\maketitle
+\\begin{abstract}
+Demo.
+\\end{abstract}
+Recent advances [1] show progress.
+\\bibliographystyle{ACM-Reference-Format}
+\\bibliography{references}
+\\end{document}
+""",
+            encoding="utf-8",
+        )
+        result = runner.invoke(main, ["check"])
+        assert result.exit_code == 0
+        assert "CITE-MANUAL" in result.output
