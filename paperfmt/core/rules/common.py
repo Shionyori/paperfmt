@@ -396,7 +396,7 @@ def check_forbidden_cite_pattern(
                 severity="warning",
                 message=message,
                 line=line_of_offset(text, match.start()),
-                can_fix=True,
+                can_fix=False,
             )
         )
     return diagnostics
