@@ -1220,3 +1220,215 @@ Checklist items.
         result = runner.invoke(main, ["check", "--template", "neurips"])
         assert result.exit_code == 0
         assert "CITE-MANUAL" in result.output
+
+
+# ---------------------------------------------------------------------------
+# ACL template integration tests
+# ---------------------------------------------------------------------------
+
+_ACL_COMPLIANT = """\\usepackage{acl}
+\\documentclass{article}
+\\title{Demo}
+\\author{Anonymous}
+\\affiliation{University}
+\\begin{document}
+\\maketitle
+\\begin{abstract}
+Demo.
+\\end{abstract}
+\\section{Introduction}
+Intro.
+\\section*{Limitations}
+Limitations.
+\\url{https://github.com/example}
+\\bibliographystyle{acl_natbib}
+\\bibliography{references}
+\\aclfinalcopy
+\\end{document}
+"""
+
+
+def test_acl_check_compliant_no_errors() -> None:
+    runner = CliRunner()
+    with runner.isolated_filesystem():
+        runner.invoke(main, ["init", "--template", "acl-conf"])
+        Path("main.tex").write_text(_ACL_COMPLIANT, encoding="utf-8")
+        result = runner.invoke(main, ["check", "--template", "acl-conf"])
+        assert "ACL001" not in result.output
+
+
+def test_acl_check_missing_acl_package() -> None:
+    runner = CliRunner()
+    with runner.isolated_filesystem():
+        runner.invoke(main, ["init", "--template", "acl-conf"])
+        Path("main.tex").write_text(
+            """\\documentclass{article}
+\\title{Demo}
+\\author{Anonymous}
+\\affiliation{University}
+\\begin{document}
+\\maketitle
+\\begin{abstract}
+Demo.
+\\end{abstract}
+\\bibliographystyle{acl_natbib}
+\\bibliography{references}
+\\aclfinalcopy
+\\end{document}
+""",
+            encoding="utf-8",
+        )
+        result = runner.invoke(main, ["check", "--template", "acl-conf"])
+        assert "ACL001" in result.output
+
+
+def test_acl_check_missing_bibliographystyle() -> None:
+    runner = CliRunner()
+    with runner.isolated_filesystem():
+        runner.invoke(main, ["init", "--template", "acl-conf"])
+        Path("main.tex").write_text(
+            """\\usepackage{acl}
+\\documentclass{article}
+\\title{Demo}
+\\author{Anonymous}
+\\affiliation{University}
+\\begin{document}
+\\maketitle
+\\begin{abstract}
+Demo.
+\\end{abstract}
+\\section*{Limitations}
+Limitations.
+\\bibliography{references}
+\\aclfinalcopy
+\\end{document}
+""",
+            encoding="utf-8",
+        )
+        result = runner.invoke(main, ["check", "--template", "acl-conf"])
+        assert result.exit_code != 0
+        assert "ACL003" in result.output
+
+
+def test_acl_check_bare_cite() -> None:
+    runner = CliRunner()
+    with runner.isolated_filesystem():
+        runner.invoke(main, ["init", "--template", "acl-conf"])
+        Path("main.tex").write_text(
+            """\\usepackage{acl}
+\\documentclass{article}
+\\title{Demo}
+\\author{Anonymous}
+\\affiliation{University}
+\\begin{document}
+\\maketitle
+\\begin{abstract}
+Demo.
+\\end{abstract}
+\\section{Introduction}
+See \\cite{some_ref}.
+\\section*{Limitations}
+Limitations.
+\\bibliographystyle{acl_natbib}
+\\bibliography{references}
+\\aclfinalcopy
+\\end{document}
+""",
+            encoding="utf-8",
+        )
+        result = runner.invoke(main, ["check", "--template", "acl-conf"])
+        assert result.exit_code == 0
+        assert "ACL004" in result.output
+
+
+def test_acl_fix_bare_cite_to_citep() -> None:
+    runner = CliRunner()
+    with runner.isolated_filesystem():
+        runner.invoke(main, ["init", "--template", "acl-conf"])
+        tex = Path("main.tex")
+        tex.write_text(
+            """\\usepackage{acl}
+\\documentclass{article}
+\\title{Demo}
+\\author{Anonymous}
+\\affiliation{University}
+\\begin{document}
+\\maketitle
+\\begin{abstract}
+Demo.
+\\end{abstract}
+\\section{Introduction}
+See \\cite{some_ref}.
+\\section*{Limitations}
+Limitations.
+\\bibliographystyle{acl_natbib}
+\\bibliography{references}
+\\aclfinalcopy
+\\end{document}
+""",
+            encoding="utf-8",
+        )
+        result = runner.invoke(main, ["fix", "--template", "acl-conf"])
+        assert result.exit_code == 0
+        updated = tex.read_text(encoding="utf-8")
+        assert "\\citep{some_ref}" in updated
+
+
+def test_acl_check_a4paper_warning() -> None:
+    runner = CliRunner()
+    with runner.isolated_filesystem():
+        runner.invoke(main, ["init", "--template", "acl-conf"])
+        Path("main.tex").write_text(
+            """\\usepackage{acl}
+\\documentclass[a4paper]{article}
+\\title{Demo}
+\\author{Anonymous}
+\\affiliation{University}
+\\begin{document}
+\\maketitle
+\\begin{abstract}
+Demo.
+\\end{abstract}
+\\section{Introduction}
+Intro.
+\\section*{Limitations}
+Limitations.
+\\bibliographystyle{acl_natbib}
+\\bibliography{references}
+\\aclfinalcopy
+\\end{document}
+""",
+            encoding="utf-8",
+        )
+        result = runner.invoke(main, ["check", "--template", "acl-conf"])
+        assert result.exit_code == 0
+        assert "ACL011" in result.output
+
+
+def test_acl_check_missing_limitations() -> None:
+    runner = CliRunner()
+    with runner.isolated_filesystem():
+        runner.invoke(main, ["init", "--template", "acl-conf"])
+        Path("main.tex").write_text(
+            """\\usepackage{acl}
+\\documentclass{article}
+\\title{Demo}
+\\author{Anonymous}
+\\affiliation{University}
+\\begin{document}
+\\maketitle
+\\begin{abstract}
+Demo.
+\\end{abstract}
+\\section{Introduction}
+Intro.
+\\bibliographystyle{acl_natbib}
+\\bibliography{references}
+\\aclfinalcopy
+\\end{document}
+""",
+            encoding="utf-8",
+        )
+        result = runner.invoke(main, ["check", "--template", "acl-conf"])
+        assert result.exit_code == 0
+        assert "ACL008" in result.output
