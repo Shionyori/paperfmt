@@ -138,11 +138,7 @@ def check_table_format_booktabs(text: str) -> list[Diagnostic]:
                 Diagnostic(
                     rule_id="TAB-FORMAT",
                     severity="warning",
-                    message=(
-                        "Detected \\hline in table; "
-                        "prefer booktabs commands "
-                        "(\\toprule/\\midrule/\\bottomrule)."
-                    ),
+                    message=("Detected \\hline in table; prefer booktabs commands (\\toprule/\\midrule/\\bottomrule)."),
                     line=line_of_offset(text, match.start(1) + block.find("\\hline")),
                 )
             )
@@ -296,10 +292,7 @@ def check_page_limit(text: str) -> list[Diagnostic]:
             Diagnostic(
                 rule_id="PAGE-LIMIT",
                 severity="warning",
-                message=(
-                    f"Draft may exceed page limit "
-                    f"(~{estimated_pages:.0f} pages estimated)."
-                ),
+                message=(f"Draft may exceed page limit (~{estimated_pages:.0f} pages estimated)."),
                 line=1,
             )
         )
@@ -314,10 +307,7 @@ def check_section_depth(text: str) -> list[Diagnostic]:
             Diagnostic(
                 rule_id="SEC-DEPTH",
                 severity="info",
-                message=(
-                    "Deep section nesting (subsubsection) detected; "
-                    "consider flattening for conference papers."
-                ),
+                message=("Deep section nesting (subsubsection) detected; consider flattening for conference papers."),
                 line=line_of_offset(text, match.start()),
             )
         )
@@ -329,9 +319,7 @@ def check_section_depth(text: str) -> list[Diagnostic]:
 # ---------------------------------------------------------------------------
 
 
-def check_required_env(
-    text: str, env_name: str, rule_id: str, severity: str, message: str
-) -> list[Diagnostic]:
+def check_required_env(text: str, env_name: str, rule_id: str, severity: str, message: str) -> list[Diagnostic]:
     """Check that a required LaTeX environment is present."""
     diagnostics: list[Diagnostic] = []
     if f"\\begin{{{env_name}}}" not in text:
@@ -346,9 +334,7 @@ def check_required_env(
     return diagnostics
 
 
-def check_bibliographystyle(
-    text: str, expected: str, rule_id: str, severity: str
-) -> list[Diagnostic]:
+def check_bibliographystyle(text: str, expected: str, rule_id: str, severity: str) -> list[Diagnostic]:
     """Check that \\bibliographystyle matches the expected value."""
     diagnostics: list[Diagnostic] = []
     has_bib = bool(BIBLIOGRAPHY_CMD_RE.search(text))
@@ -373,10 +359,7 @@ def check_bibliographystyle(
             Diagnostic(
                 rule_id=rule_id,
                 severity="warning",
-                message=(
-                    f"\\bibliographystyle should be {{{expected}}}, "
-                    f"found {{{style_match.group(1).strip()}}}."
-                ),
+                message=(f"\\bibliographystyle should be {{{expected}}}, found {{{style_match.group(1).strip()}}}."),
                 line=line_of_offset(text, style_match.start()),
                 can_fix=True,
             )
@@ -384,9 +367,7 @@ def check_bibliographystyle(
     return diagnostics
 
 
-def check_forbidden_cite_pattern(
-    text: str, pattern: re.Pattern[str], rule_id: str, message: str
-) -> list[Diagnostic]:
+def check_forbidden_cite_pattern(text: str, pattern: re.Pattern[str], rule_id: str, message: str) -> list[Diagnostic]:
     """Flag occurrences of a forbidden citation pattern."""
     diagnostics: list[Diagnostic] = []
     for match in pattern.finditer(text):
@@ -402,18 +383,12 @@ def check_forbidden_cite_pattern(
     return diagnostics
 
 
-def _fix_caption_order_for_environment(
-    block: str, is_figure: bool
-) -> tuple[str, bool]:
+def _fix_caption_order_for_environment(block: str, is_figure: bool) -> tuple[str, bool]:
     """Low-level caption reorder within a figure or table environment body."""
     lines = block.splitlines()
-    cap_idx = next(
-        (i for i, line in enumerate(lines) if "\\caption{" in line), None
-    )
+    cap_idx = next((i for i, line in enumerate(lines) if "\\caption{" in line), None)
     anchor = "\\includegraphics" if is_figure else "\\begin{tabular}"
-    anchor_idx = next(
-        (i for i, line in enumerate(lines) if anchor in line), None
-    )
+    anchor_idx = next((i for i, line in enumerate(lines) if anchor in line), None)
 
     if cap_idx is None or anchor_idx is None:
         return block, False
@@ -437,9 +412,7 @@ def fix_figure_caption_order(text: str) -> tuple[str, bool]:
     def fix_figure(match: re.Match[str]) -> str:
         nonlocal changed_any
         block = match.group(1)
-        new_block, changed = _fix_caption_order_for_environment(
-            block, is_figure=True
-        )
+        new_block, changed = _fix_caption_order_for_environment(block, is_figure=True)
         if changed:
             changed_any = True
         return match.group(0).replace(block, new_block)
@@ -454,9 +427,7 @@ def fix_table_caption_order(text: str) -> tuple[str, bool]:
     def fix_table(match: re.Match[str]) -> str:
         nonlocal changed_any
         block = match.group(1)
-        new_block, changed = _fix_caption_order_for_environment(
-            block, is_figure=False
-        )
+        new_block, changed = _fix_caption_order_for_environment(block, is_figure=False)
         if changed:
             changed_any = True
         return match.group(0).replace(block, new_block)
@@ -476,19 +447,11 @@ def fix_bibliographystyle(text: str, expected: str) -> tuple[str, bool]:
 
     if style_match:
         # Replace existing non-matching style
-        updated = (
-            text[: style_match.start()]
-            + f"\\bibliographystyle{{{expected}}}"
-            + text[style_match.end():]
-        )
+        updated = text[: style_match.start()] + f"\\bibliographystyle{{{expected}}}" + text[style_match.end() :]
     else:
         # Insert before bibliography
         insert_pos = bib_match.start()
-        updated = (
-            text[:insert_pos]
-            + f"\\bibliographystyle{{{expected}}}\n"
-            + text[insert_pos:]
-        )
+        updated = text[:insert_pos] + f"\\bibliographystyle{{{expected}}}\n" + text[insert_pos:]
 
     return updated, updated != text
 
@@ -520,39 +483,25 @@ COMMON_RULES: tuple[RulePlugin, ...] = (
         "BIB-CROSSCHECK",
         "Cross-check citations against bibliography",
         "warning",
-        lambda text, tex_file, ruleset: check_bib_crosscheck(
-            text, tex_file, ruleset.bibliography
-        ),
+        lambda text, tex_file, ruleset: check_bib_crosscheck(text, tex_file, ruleset.bibliography),
     ),
     RulePlugin(
         "FIG-REF",
         "Check that figure labels are referenced in text",
         "warning",
-        lambda text, tex_file, ruleset: [
-            d
-            for d in check_unreferenced_labels(text)
-            if d.rule_id == "FIG-REF"
-        ],
+        lambda text, tex_file, ruleset: [d for d in check_unreferenced_labels(text) if d.rule_id == "FIG-REF"],
     ),
     RulePlugin(
         "TAB-REF",
         "Check that table labels are referenced in text",
         "warning",
-        lambda text, tex_file, ruleset: [
-            d
-            for d in check_unreferenced_labels(text)
-            if d.rule_id == "TAB-REF"
-        ],
+        lambda text, tex_file, ruleset: [d for d in check_unreferenced_labels(text) if d.rule_id == "TAB-REF"],
     ),
     RulePlugin(
         "EQ-REF",
         "Check that equation labels are referenced in text",
         "warning",
-        lambda text, tex_file, ruleset: [
-            d
-            for d in check_unreferenced_labels(text)
-            if d.rule_id == "EQ-REF"
-        ],
+        lambda text, tex_file, ruleset: [d for d in check_unreferenced_labels(text) if d.rule_id == "EQ-REF"],
     ),
     RulePlugin(
         "IMG-RES",

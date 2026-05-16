@@ -30,12 +30,8 @@ CITE_VARIANT_WITH_BRACE_RE = re.compile(r"\\cite(?:t|p)(\s*\{)")
 AUTHOR_BLOCK_RE = re.compile(r"\\author\s*\{(.*?)\}", re.DOTALL)
 DOI_FIELD_RE = re.compile(r"^\s*doi\s*=", re.IGNORECASE | re.MULTILINE)
 CITE_SPACE_SEP_RE = re.compile(r"\\cite\s*\{([^}]+)\}")
-BALANCE_RE = re.compile(
-    r"\\(?:balance|balancest?authors|IEEEtriggeratref|IEEEtriggercmd)\b"
-)
-EQ_ENV_RE = re.compile(
-    r"\\begin\{equation\*?\}(.*?)\\end\{equation\*?\}", re.DOTALL
-)
+BALANCE_RE = re.compile(r"\\(?:balance|balancest?authors|IEEEtriggeratref|IEEEtriggercmd)\b")
+EQ_ENV_RE = re.compile(r"\\begin\{equation\*?\}(.*?)\\end\{equation\*?\}", re.DOTALL)
 EQ_PUNCT_RE = re.compile(r"[.,;:!?]\s*$")
 
 
@@ -88,10 +84,7 @@ def _check_anonymization_leak(text: str) -> list[Diagnostic]:
                 Diagnostic(
                     rule_id="IEEE006",
                     severity="warning",
-                    message=(
-                        "Possible anonymization leak in author block "
-                        "for double-blind submission."
-                    ),
+                    message=("Possible anonymization leak in author block for double-blind submission."),
                     line=line_of_offset(text, match.start()),
                 )
             )
@@ -115,9 +108,7 @@ def _parse_bib_doi_presence(bib_text: str) -> dict[str, bool]:
     return presence
 
 
-def _check_missing_doi_from_config(
-    text: str, tex_file: Path, bibliography: str
-) -> list[Diagnostic]:
+def _check_missing_doi_from_config(text: str, tex_file: Path, bibliography: str) -> list[Diagnostic]:
     diagnostics: list[Diagnostic] = []
     cited_keys = extract_cited_keys(text)
     if not cited_keys:
@@ -134,9 +125,7 @@ def _check_missing_doi_from_config(
                 Diagnostic(
                     rule_id="IEEE007",
                     severity="warning",
-                    message=(
-                        f"Citation '{key}' is missing DOI in bibliography entry."
-                    ),
+                    message=(f"Citation '{key}' is missing DOI in bibliography entry."),
                     line=1,
                 )
             )
@@ -155,10 +144,7 @@ def _check_ieee008(text: str) -> list[Diagnostic]:
             Diagnostic(
                 rule_id="IEEE008",
                 severity="warning",
-                message=(
-                    "No \\thanks found; consider adding for author "
-                    "affiliations/funding."
-                ),
+                message=("No \\thanks found; consider adding for author affiliations/funding."),
                 line=1,
             )
         )
@@ -183,10 +169,7 @@ def _check_ieee009(text: str) -> list[Diagnostic]:
                     Diagnostic(
                         rule_id="IEEE009",
                         severity="warning",
-                        message=(
-                            "\\cite keys should be comma-separated, "
-                            "not space-separated."
-                        ),
+                        message=("\\cite keys should be comma-separated, not space-separated."),
                         line=line_of_offset(text, match.start()),
                         can_fix=True,
                     )
@@ -222,10 +205,7 @@ def _check_equation_punctuation(text: str) -> list[Diagnostic]:
                 Diagnostic(
                     rule_id="IEEE010",
                     severity="warning",
-                    message=(
-                        "Equation should end with punctuation "
-                        "(comma or period)."
-                    ),
+                    message=("Equation should end with punctuation (comma or period)."),
                     line=line_of_offset(text, match.start()),
                 )
             )
@@ -242,11 +222,7 @@ def _check_ieee012(text: str) -> list[Diagnostic]:
     end_doc = text.find("\\end{document}")
     bib_match = BIBLIOGRAPHY_CMD_RE.search(text)
     if bib_match:
-        between = (
-            text[bib_match.end() : end_doc]
-            if end_doc > bib_match.end()
-            else ""
-        )
+        between = text[bib_match.end() : end_doc] if end_doc > bib_match.end() else ""
         if not BALANCE_RE.search(between):
             diagnostics.append(
                 Diagnostic(
@@ -267,9 +243,7 @@ def _check_ieee012(text: str) -> list[Diagnostic]:
 # ---------------------------------------------------------------------------
 
 
-def prune_unused_bib_entries(
-    tex_text: str, bib_text: str
-) -> tuple[str, bool]:
+def prune_unused_bib_entries(tex_text: str, bib_text: str) -> tuple[str, bool]:
     """Remove bibliography entries not cited in the tex file."""
     cited_keys = extract_cited_keys(tex_text)
     if not cited_keys:
@@ -300,18 +274,14 @@ RULES: tuple[RulePlugin, ...] = COMMON_RULES + (
         "IEEE001",
         "Figure caption should be placed after includegraphics",
         "warning",
-        lambda text, tex_file, ruleset: check_figure_caption_order(
-            text, "IEEE001"
-        ),
+        lambda text, tex_file, ruleset: check_figure_caption_order(text, "IEEE001"),
         fix_figure_caption_order,
     ),
     RulePlugin(
         "IEEE002",
         "Table caption should be placed before tabular",
         "warning",
-        lambda text, tex_file, ruleset: check_table_caption_order(
-            text, "IEEE002"
-        ),
+        lambda text, tex_file, ruleset: check_table_caption_order(text, "IEEE002"),
         fix_table_caption_order,
     ),
     RulePlugin(
@@ -355,9 +325,7 @@ RULES: tuple[RulePlugin, ...] = COMMON_RULES + (
         "IEEE007",
         "Cited entry missing DOI in bibliography",
         "warning",
-        lambda text, tex_file, ruleset: _check_missing_doi_from_config(
-            text, tex_file, ruleset.bibliography
-        ),
+        lambda text, tex_file, ruleset: _check_missing_doi_from_config(text, tex_file, ruleset.bibliography),
     ),
     RulePlugin(
         "IEEE008",
@@ -382,9 +350,7 @@ RULES: tuple[RulePlugin, ...] = COMMON_RULES + (
         "IEEE011",
         "Check for missing \\bibliographystyle{IEEEtran}",
         "error",
-        lambda text, tex_file, ruleset: check_bibliographystyle(
-            text, "IEEEtran", "IEEE011", "error"
-        ),
+        lambda text, tex_file, ruleset: check_bibliographystyle(text, "IEEEtran", "IEEE011", "error"),
         lambda text: fix_bibliographystyle(text, "IEEEtran"),
     ),
     RulePlugin(

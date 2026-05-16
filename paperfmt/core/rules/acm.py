@@ -20,9 +20,7 @@ from paperfmt.core.rules.common import (
 # ACM-specific regexes
 # ---------------------------------------------------------------------------
 
-ACM_DOCUMENTCLASS_RE = re.compile(
-    r"\\documentclass(?:\[[^\]]*\])?\s*\{acmart\}"
-)
+ACM_DOCUMENTCLASS_RE = re.compile(r"\\documentclass(?:\[[^\]]*\])?\s*\{acmart\}")
 ACM_KEYWORDS_RE = re.compile(r"\\keywords\s*\{")
 ACM_CCSDESC_RE = re.compile(r"\\ccsdesc\s*\{")
 ACM_THANKS_RE = re.compile(r"\\thanks\s*\{")
@@ -104,9 +102,7 @@ def _check_acm005(text: str) -> list[Diagnostic]:
             Diagnostic(
                 rule_id="ACM005",
                 severity="warning",
-                message=(
-                    "\\thanks used; ACM uses \\titlenote for author notes."
-                ),
+                message=("\\thanks used; ACM uses \\titlenote for author notes."),
                 line=line_of_offset(text, match.start()),
                 can_fix=True,
             )
@@ -152,9 +148,7 @@ def _check_acm009(text: str) -> list[Diagnostic]:
             Diagnostic(
                 rule_id="ACM009",
                 severity="warning",
-                message=(
-                    "Missing both \\received{...} and \\accepted{...}."
-                ),
+                message=("Missing both \\received{...} and \\accepted{...}."),
                 line=1,
             )
         )
@@ -195,10 +189,7 @@ def _check_acm012(text: str) -> list[Diagnostic]:
                 Diagnostic(
                     rule_id="ACM012",
                     severity="info",
-                    message=(
-                        "\\documentclass option 'acmsmall' detected; "
-                        "verify venue format parameter."
-                    ),
+                    message=("\\documentclass option 'acmsmall' detected; verify venue format parameter."),
                     line=line_of_offset(text, match.start()),
                 )
             )
@@ -226,9 +217,7 @@ RULES: tuple[RulePlugin, ...] = COMMON_RULES + (
         "ACM003",
         "Check for missing \\bibliographystyle{ACM-Reference-Format}",
         "error",
-        lambda text, tex_file, ruleset: check_bibliographystyle(
-            text, "ACM-Reference-Format", "ACM003", "error"
-        ),
+        lambda text, tex_file, ruleset: check_bibliographystyle(text, "ACM-Reference-Format", "ACM003", "error"),
         lambda text: fix_bibliographystyle(text, "ACM-Reference-Format"),
     ),
     RulePlugin(
@@ -254,18 +243,14 @@ RULES: tuple[RulePlugin, ...] = COMMON_RULES + (
         "ACM007",
         "Figure caption should be placed after includegraphics",
         "warning",
-        lambda text, tex_file, ruleset: check_figure_caption_order(
-            text, "ACM007"
-        ),
+        lambda text, tex_file, ruleset: check_figure_caption_order(text, "ACM007"),
         fix_figure_caption_order,
     ),
     RulePlugin(
         "ACM008",
         "Table caption should be placed before tabular",
         "warning",
-        lambda text, tex_file, ruleset: check_table_caption_order(
-            text, "ACM008"
-        ),
+        lambda text, tex_file, ruleset: check_table_caption_order(text, "ACM008"),
         fix_table_caption_order,
     ),
     RulePlugin(

@@ -105,10 +105,7 @@ def _check_acl004(text: str) -> list[Diagnostic]:
             Diagnostic(
                 rule_id="ACL004",
                 severity="warning",
-                message=(
-                    "Use \\citep{...} or \\citet{...} instead of "
-                    "\\cite{...} for natbib."
-                ),
+                message=("Use \\citep{...} or \\citet{...} instead of \\cite{...} for natbib."),
                 line=line_of_offset(text, start),
                 can_fix=True,
             )
@@ -148,10 +145,7 @@ def _check_acl008(text: str) -> list[Diagnostic]:
             Diagnostic(
                 rule_id="ACL008",
                 severity="warning",
-                message=(
-                    "Missing \\section{Limitations} or \\section{Ethics} "
-                    "as required by ARR."
-                ),
+                message=("Missing \\section{Limitations} or \\section{Ethics} as required by ARR."),
                 line=1,
             )
         )
@@ -170,10 +164,7 @@ def _check_acl009(text: str) -> list[Diagnostic]:
             Diagnostic(
                 rule_id="ACL009",
                 severity="warning",
-                message=(
-                    "Missing \\url{} or \\href{} for data/code; "
-                    "consider adding a link to your repository."
-                ),
+                message=("Missing \\url{} or \\href{} for data/code; consider adding a link to your repository."),
                 line=1,
             )
         )
@@ -192,10 +183,7 @@ def _check_acl010(text: str) -> list[Diagnostic]:
             Diagnostic(
                 rule_id="ACL010",
                 severity="warning",
-                message=(
-                    "\\thanks detected; this may break anonymization "
-                    "for double-blind review."
-                ),
+                message=("\\thanks detected; this may break anonymization for double-blind review."),
                 line=line_of_offset(text, match.start()),
             )
         )
@@ -204,10 +192,7 @@ def _check_acl010(text: str) -> list[Diagnostic]:
             Diagnostic(
                 rule_id="ACL010",
                 severity="warning",
-                message=(
-                    "\\footnote detected; this may break anonymization "
-                    "for double-blind review."
-                ),
+                message=("\\footnote detected; this may break anonymization for double-blind review."),
                 line=line_of_offset(text, match.start()),
             )
         )
@@ -226,10 +211,7 @@ def _check_acl011(text: str) -> list[Diagnostic]:
             Diagnostic(
                 rule_id="ACL011",
                 severity="warning",
-                message=(
-                    "a4paper option detected; ACL/ARR requires "
-                    "US letter paper size."
-                ),
+                message=("a4paper option detected; ACL/ARR requires US letter paper size."),
                 line=line_of_offset(text, match.start()),
             )
         )
@@ -248,10 +230,7 @@ def _check_acl012(text: str) -> list[Diagnostic]:
             Diagnostic(
                 rule_id="ACL012",
                 severity="info",
-                message=(
-                    "Missing \\aclfinalcopy; add this command "
-                    "for camera-ready submissions."
-                ),
+                message=("Missing \\aclfinalcopy; add this command for camera-ready submissions."),
                 line=1,
             )
         )
@@ -279,9 +258,7 @@ RULES: tuple[RulePlugin, ...] = COMMON_RULES + (
         "ACL003",
         "Check for \\bibliographystyle{acl_natbib}",
         "error",
-        lambda text, tex_file, ruleset: check_bibliographystyle(
-            text, "acl_natbib", "ACL003", "error"
-        ),
+        lambda text, tex_file, ruleset: check_bibliographystyle(text, "acl_natbib", "ACL003", "error"),
         lambda text: fix_bibliographystyle(text, "acl_natbib"),
     ),
     RulePlugin(
@@ -307,18 +284,14 @@ RULES: tuple[RulePlugin, ...] = COMMON_RULES + (
         "ACL006",
         "Figure caption should be placed after includegraphics",
         "warning",
-        lambda text, tex_file, ruleset: check_figure_caption_order(
-            text, "ACL006"
-        ),
+        lambda text, tex_file, ruleset: check_figure_caption_order(text, "ACL006"),
         fix_figure_caption_order,
     ),
     RulePlugin(
         "ACL007",
         "Table caption should be placed before tabular",
         "warning",
-        lambda text, tex_file, ruleset: check_table_caption_order(
-            text, "ACL007"
-        ),
+        lambda text, tex_file, ruleset: check_table_caption_order(text, "ACL007"),
         fix_table_caption_order,
     ),
     RulePlugin(

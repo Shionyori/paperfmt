@@ -5,7 +5,7 @@ DEFAULT_TEMPLATE = "ieee-conf"
 TEMPLATE_ALIASES: dict[str, str] = {}
 
 CANONICAL_TEMPLATES: tuple[str, ...] = (
-    DEFAULT_TEMPLATE,       # "ieee-conf"
+    DEFAULT_TEMPLATE,  # "ieee-conf"
     "acm-conf",
     "neurips",
     "acl-conf",

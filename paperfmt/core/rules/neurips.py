@@ -19,16 +19,10 @@ from paperfmt.core.rules.common import (
 # NeurIPS-specific regexes
 # ---------------------------------------------------------------------------
 
-NEURIPS_DOC_RE = re.compile(
-    r"\\documentclass(?:\[[^\]]*\])?\s*\{neurips(?:_?\d+)?\}"
-)
-NEURIPS_PREPRINT_RE = re.compile(
-    r"\\usepackage(?:\[(?:preprint|final)[^\]]*\])?\{neurips(?:_?\d+)?\}"
-)
+NEURIPS_DOC_RE = re.compile(r"\\documentclass(?:\[[^\]]*\])?\s*\{neurips(?:_?\d+)?\}")
+NEURIPS_PREPRINT_RE = re.compile(r"\\usepackage(?:\[(?:preprint|final)[^\]]*\])?\{neurips(?:_?\d+)?\}")
 NEURIPS_CHECKLIST_RE = re.compile(r"(?:checklist|\bsection\{.*[Cc]hecklist)")
-NEURIPS_PLAIN_BIB_RE = re.compile(
-    r"\\bibliographystyle\s*\{(?:plain|abbrvnat|unsrtnat)\}"
-)
+NEURIPS_PLAIN_BIB_RE = re.compile(r"\\bibliographystyle\s*\{(?:plain|abbrvnat|unsrtnat)\}")
 NEURIPS_CITE_BARE_ONLY_RE = re.compile(r"\\cite\s*\{")
 
 
@@ -103,10 +97,7 @@ def _check_neur004(text: str) -> list[Diagnostic]:
             Diagnostic(
                 rule_id="NEUR004",
                 severity="warning",
-                message=(
-                    "\\author should be placed after \\begin{abstract} "
-                    "for anonymous NeurIPS style."
-                ),
+                message=("\\author should be placed after \\begin{abstract} for anonymous NeurIPS style."),
                 line=line_of_offset(text, author_pos),
             )
         )
@@ -132,8 +123,7 @@ def _check_neur005(text: str) -> list[Diagnostic]:
                 rule_id="NEUR005",
                 severity="warning",
                 message=(
-                    "Missing or incorrect \\bibliographystyle; "
-                    "NeurIPS expects {plain}, {abbrvnat}, or {unsrtnat}."
+                    "Missing or incorrect \\bibliographystyle; NeurIPS expects {plain}, {abbrvnat}, or {unsrtnat}."
                 ),
                 line=line,
             )
@@ -157,10 +147,7 @@ def _check_neur006(text: str) -> list[Diagnostic]:
             Diagnostic(
                 rule_id="NEUR006",
                 severity="warning",
-                message=(
-                    "Use \\citep{...} or \\citet{...} instead of "
-                    "\\cite{...} for natbib."
-                ),
+                message=("Use \\citep{...} or \\citet{...} instead of \\cite{...} for natbib."),
                 line=line_of_offset(text, start),
                 can_fix=True,
             )
@@ -227,10 +214,7 @@ def _check_neur011(text: str) -> list[Diagnostic]:
                     Diagnostic(
                         rule_id="NEUR011",
                         severity="warning",
-                        message=(
-                            "\\citep/\\citet keys should be comma-separated, "
-                            "not space-separated."
-                        ),
+                        message=("\\citep/\\citet keys should be comma-separated, not space-separated."),
                         line=line_of_offset(text, match.start()),
                         can_fix=True,
                     )
@@ -266,10 +250,7 @@ def _check_neur012(text: str) -> list[Diagnostic]:
                 Diagnostic(
                     rule_id="NEUR012",
                     severity="info",
-                    message=(
-                        "Consider adding \\balance before "
-                        "\\end{document} for two-column NeurIPS format."
-                    ),
+                    message=("Consider adding \\balance before \\end{document} for two-column NeurIPS format."),
                     line=line_of_offset(text, end_doc),
                 )
             )
@@ -340,18 +321,14 @@ RULES: tuple[RulePlugin, ...] = COMMON_RULES + (
         "NEUR009",
         "Figure caption should be placed after includegraphics",
         "warning",
-        lambda text, tex_file, ruleset: check_figure_caption_order(
-            text, "NEUR009"
-        ),
+        lambda text, tex_file, ruleset: check_figure_caption_order(text, "NEUR009"),
         fix_figure_caption_order,
     ),
     RulePlugin(
         "NEUR010",
         "Table caption should be placed before tabular",
         "warning",
-        lambda text, tex_file, ruleset: check_table_caption_order(
-            text, "NEUR010"
-        ),
+        lambda text, tex_file, ruleset: check_table_caption_order(text, "NEUR010"),
         fix_table_caption_order,
     ),
     RulePlugin(
