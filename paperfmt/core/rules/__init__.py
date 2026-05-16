@@ -3,13 +3,13 @@ from __future__ import annotations
 from paperfmt.core.registry import DEFAULT_TEMPLATE, normalize_template
 from paperfmt.core.rules.base import RulePlugin
 from paperfmt.core.rules.ieee_conf import RULES as IEEE_CONF_RULES
-# from paperfmt.core.rules.acm import RULES as ACM_RULES
+from paperfmt.core.rules.acm import RULES as ACM_RULES
 # from paperfmt.core.rules.neurips import RULES as NEURIPS_RULES
 # from paperfmt.core.rules.acl import RULES as ACL_RULES
 
 TEMPLATE_RULES: dict[str, tuple[RulePlugin, ...]] = {
     "ieee-conf": IEEE_CONF_RULES,
-    # "acm-conf": ACM_RULES,
+    "acm-conf": ACM_RULES,
     # "neurips": NEURIPS_RULES,
     # "acl-conf": ACL_RULES,
 }
