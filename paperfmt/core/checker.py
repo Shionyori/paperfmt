@@ -81,8 +81,6 @@ def get_fixable_rules(template: str, ruleset: RuleSet) -> dict[str, "RulePlugin"
     Used by interactive fix mode to look up which plugin to invoke
     when the user approves a diagnostic.
     """
-    from paperfmt.core.rules import get_template_plugins
-
     result: dict[str, "RulePlugin"] = {}
     for plugin in get_template_plugins(template):
         if plugin.fix is not None and ruleset.is_enabled(plugin.rule_id):
