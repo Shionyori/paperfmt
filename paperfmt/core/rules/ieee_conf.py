@@ -179,11 +179,20 @@ def _check_ieee009(text: str) -> list[Diagnostic]:
 
 
 def _fix_rule_009(text: str) -> tuple[str, bool]:
-    """Replace space-separated cite keys with comma-separated."""
+    """Replace space-separated cite keys with comma-separated.
+
+    Only rewrites citations that lack commas entirely (e.g. \\cite{ref1 ref2}).
+    Citations that are already comma-separated are left untouched so the fix
+    stays aligned with _check_ieee009.
+    """
 
     def _fix_cite(match: re.Match[str]) -> str:
         keys_text = match.group(1)
-        keys = [k.strip() for k in keys_text.replace(",", " ").split()]
+        if "," in keys_text:
+            return match.group(0)  # already comma-separated, leave as-is
+        keys = keys_text.split()
+        if len(keys) <= 1:
+            return match.group(0)
         return "\\cite{" + ", ".join(keys) + "}"
 
     updated = CITE_SPACE_SEP_RE.sub(_fix_cite, text)
@@ -207,9 +216,77 @@ def _check_equation_punctuation(text: str) -> list[Diagnostic]:
                     severity="warning",
                     message=("Equation should end with punctuation (comma or period)."),
                     line=line_of_offset(text, match.start()),
+                    can_fix=True,
                 )
             )
     return diagnostics
+
+
+def _fix_equation_punctuation(text: str) -> tuple[str, bool]:
+    """Append a comma to equation bodies that lack ending punctuation."""
+
+    def _fix_eq(match: re.Match[str]) -> str:
+        body = match.group(1)
+        # Separate trailing \label{...} (with surrounding whitespace) from body
+        label_at_end = re.search(r"\s*\\label\{[^}]*\}\s*$", body)
+        if label_at_end:
+            label_part = body[label_at_end.start() :]
+            core_part = body[: label_at_end.start()]
+        else:
+            label_part = ""
+            core_part = body
+
+        if core_part.rstrip() and not EQ_PUNCT_RE.search(core_part.rstrip()):
+            if label_part:
+                body = core_part + "," + label_part
+            else:
+                stripped = core_part.rstrip()
+                trailing = body[len(stripped):]
+                body = stripped + "," + trailing
+
+        return match.group(0).replace(match.group(1), body)
+
+    updated = EQ_ENV_RE.sub(_fix_eq, text)
+    return updated, updated != text
+
+
+def _fix_missing_env(text: str, env_name: str) -> tuple[str, bool]:
+    """Insert a missing LaTeX environment stub after \\end{abstract} or near document start."""
+    if f"\\begin{{{env_name}}}" in text:
+        return text, False
+
+    stub = f"\n\\begin{{{env_name}}}\n\n\\end{{{env_name}}}"
+
+    # Prefer insertion after \end{abstract}
+    abstract_end = text.find("\\end{abstract}")
+    if abstract_end != -1:
+        insert_pos = abstract_end + len("\\end{abstract}")
+        # Find end of line after \end{abstract}
+        nl = text.find("\n", insert_pos)
+        if nl != -1:
+            insert_pos = nl + 1
+        updated = text[:insert_pos] + stub + "\n" + text[insert_pos:]
+        return updated, True
+
+    # Fall back: after \maketitle
+    maketitle = text.find("\\maketitle")
+    if maketitle != -1:
+        insert_pos = maketitle + len("\\maketitle")
+        nl = text.find("\n", insert_pos)
+        if nl != -1:
+            insert_pos = nl + 1
+        updated = text[:insert_pos] + stub + "\n" + text[insert_pos:]
+        return updated, True
+
+    # Last resort: after \begin{document}
+    doc_begin = text.find("\\begin{document}")
+    if doc_begin != -1:
+        nl = text.find("\n", doc_begin)
+        if nl != -1:
+            updated = text[: nl + 1] + stub + "\n" + text[nl + 1 :]
+            return updated, True
+
+    return text, False
 
 
 # ---------------------------------------------------------------------------
@@ -233,9 +310,34 @@ def _check_ieee012(text: str) -> list[Diagnostic]:
                         "before \\end{document} for two-column IEEE format."
                     ),
                     line=line_of_offset(text, bib_match.start()),
+                    can_fix=True,
                 )
             )
     return diagnostics
+
+
+def _fix_rule_012(text: str) -> tuple[str, bool]:
+    """Insert \\balance before \\end{document}."""
+    if BALANCE_RE.search(text):
+        return text, False
+    end_doc = text.find("\\end{document}")
+    if end_doc == -1:
+        return text, False
+    # Insert \balance on its own line before \end{document}
+    line_start = text.rfind("\n", 0, end_doc)
+    if line_start == -1:
+        line_start = 0
+    else:
+        line_start += 1
+    indent = text[line_start:end_doc] if text[line_start:end_doc].strip() == "" else "\n"
+    # Preserve original indentation for \end{document}
+    original_end_line = text[line_start:end_doc]
+    indent_str = original_end_line[: len(original_end_line) - len(original_end_line.lstrip())] if original_end_line.strip() else ""
+    balance_line = indent_str + "\\balance"
+    if end_doc > 0 and text[end_doc - 1] != "\n":
+        balance_line = "\n" + balance_line
+    updated = text[:end_doc] + balance_line + "\n\n" + text[end_doc:]
+    return updated, True
 
 
 # ---------------------------------------------------------------------------
@@ -313,7 +415,9 @@ RULES: tuple[RulePlugin, ...] = COMMON_RULES + (
             "IEEE005",
             "warning",
             "Missing IEEEkeywords environment.",
+            can_fix=True,
         ),
+        lambda text: _fix_missing_env(text, "IEEEkeywords"),
     ),
     RulePlugin(
         "IEEE006",
@@ -345,6 +449,7 @@ RULES: tuple[RulePlugin, ...] = COMMON_RULES + (
         "Equation should end with punctuation",
         "warning",
         lambda text, tex_file, ruleset: _check_equation_punctuation(text),
+        _fix_equation_punctuation,
     ),
     RulePlugin(
         "IEEE011",
@@ -358,5 +463,6 @@ RULES: tuple[RulePlugin, ...] = COMMON_RULES + (
         "Check for missing column balance command",
         "info",
         lambda text, tex_file, ruleset: _check_ieee012(text),
+        _fix_rule_012,
     ),
 )

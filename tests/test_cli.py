@@ -54,6 +54,7 @@ def test_fix_interactive_no_fixable_diagnostics() -> None:
             "\\ref{fig:1} referenced.\n"
             "\\bibliographystyle{IEEEtran}\n"
             "\\bibliography{refs}\n"
+            "\\balance\n"
             "\\end{document}\n",
             encoding="utf-8",
         )
@@ -78,7 +79,9 @@ def test_fix_interactive_yes_applies_fix() -> None:
             "\\begin{abstract}\n"
             "Abstract.\n"
             "\\end{abstract}\n"
+            "\\begin{IEEEkeywords}\nkeyword.\n\\end{IEEEkeywords}\n"
             "\\bibliography{refs}\n"
+            "\\balance\n"
             "\\end{document}\n",
             encoding="utf-8",
         )
@@ -103,7 +106,9 @@ def test_fix_interactive_no_skips() -> None:
             "\\begin{abstract}\n"
             "Abstract.\n"
             "\\end{abstract}\n"
+            "\\begin{IEEEkeywords}\nkeyword.\n\\end{IEEEkeywords}\n"
             "\\bibliography{refs}\n"
+            "\\balance\n"
             "\\end{document}\n"
         )
         tex.write_text(original, encoding="utf-8")
@@ -157,7 +162,9 @@ def test_fix_interactive_all_applies_remaining() -> None:
             "\\begin{abstract}\n"
             "Abstract.\n"
             "\\end{abstract}\n"
+            "\\begin{IEEEkeywords}\nkeyword.\n\\end{IEEEkeywords}\n"
             "\\bibliography{refs}\n"
+            "\\balance\n"
             "\\end{document}\n",
             encoding="utf-8",
         )
@@ -183,8 +190,10 @@ def test_fix_interactive_quit_preserves_applied() -> None:
             "\\begin{abstract}\n"
             "Abstract.\n"
             "\\end{abstract}\n"
+            "\\begin{IEEEkeywords}\nkeyword.\n\\end{IEEEkeywords}\n"
             "Text \\cite{ref1 ref2}.\n"
             "\\bibliography{refs}\n"
+            "\\balance\n"
             "\\end{document}\n",
             encoding="utf-8",
         )

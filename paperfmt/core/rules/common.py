@@ -140,9 +140,51 @@ def check_table_format_booktabs(text: str) -> list[Diagnostic]:
                     severity="warning",
                     message=("Detected \\hline in table; prefer booktabs commands (\\toprule/\\midrule/\\bottomrule)."),
                     line=line_of_offset(text, match.start(1) + block.find("\\hline")),
+                    can_fix=True,
                 )
             )
     return diagnostics
+
+
+HLINE_RE = re.compile(r"^(\s*)\\hline\s*$", re.MULTILINE)
+
+
+def fix_table_format_booktabs(text: str) -> tuple[str, bool]:
+    """Replace \\hline with booktabs commands within table environments."""
+
+    def _fix_table(match: re.Match[str]) -> str:
+        block = match.group(1)
+        hline_matches = list(HLINE_RE.finditer(block))
+        if not hline_matches:
+            return match.group(0)
+
+        new_block = block
+        for i in reversed(range(len(hline_matches))):
+            h = hline_matches[i]
+            indent = h.group(1)
+            if len(hline_matches) == 1:
+                replacement = f"{indent}\\midrule"
+            elif i == 0:
+                replacement = f"{indent}\\toprule"
+            elif i == len(hline_matches) - 1:
+                replacement = f"{indent}\\bottomrule"
+            else:
+                replacement = f"{indent}\\midrule"
+            new_block = new_block[: h.start()] + replacement + new_block[h.end() :]
+
+        return match.group(0).replace(block, new_block)
+
+    updated = TABLE_RE.sub(_fix_table, text)
+
+    # Ensure \usepackage{booktabs} is present
+    if updated != text and "\\usepackage{booktabs}" not in updated:
+        # Insert after \documentclass line
+        doc_match = re.search(r"(\\(?:documentclass|LoadClass)(?:\[[^\]]*\])?\s*\{[^}]*\})", updated)
+        if doc_match:
+            insert_pos = doc_match.end()
+            updated = updated[:insert_pos] + "\n\\usepackage{booktabs}" + updated[insert_pos:]
+
+    return updated, updated != text
 
 
 def check_bib_crosscheck(text: str, tex_file: Path, bibliography: str) -> list[Diagnostic]:
@@ -319,7 +361,9 @@ def check_section_depth(text: str) -> list[Diagnostic]:
 # ---------------------------------------------------------------------------
 
 
-def check_required_env(text: str, env_name: str, rule_id: str, severity: str, message: str) -> list[Diagnostic]:
+def check_required_env(
+    text: str, env_name: str, rule_id: str, severity: str, message: str, *, can_fix: bool = False
+) -> list[Diagnostic]:
     """Check that a required LaTeX environment is present."""
     diagnostics: list[Diagnostic] = []
     if f"\\begin{{{env_name}}}" not in text:
@@ -329,6 +373,7 @@ def check_required_env(text: str, env_name: str, rule_id: str, severity: str, me
                 severity=severity,
                 message=message,
                 line=1,
+                can_fix=can_fix,
             )
         )
     return diagnostics
@@ -478,6 +523,7 @@ COMMON_RULES: tuple[RulePlugin, ...] = (
         "\\hline in table; prefer booktabs commands",
         "warning",
         lambda text, tex_file, ruleset: check_table_format_booktabs(text),
+        fix_table_format_booktabs,
     ),
     RulePlugin(
         "BIB-CROSSCHECK",

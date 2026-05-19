@@ -73,7 +73,15 @@ def _render_text_report(report: CheckReport) -> None:
         can_fix = " (fixable)" if item.can_fix else ""
         click.echo(f"{item.severity.upper()} {item.rule_id} line {item.line}: {item.message}{can_fix}")
 
-    click.echo(f"Summary: {len(diagnostics)} issues, {report.error_count} errors, {report.warning_count} warnings")
+    fixable_count = sum(1 for d in diagnostics if d.can_fix)
+    summary = f"Summary: {len(diagnostics)} issues"
+    if fixable_count:
+        summary += f" ({fixable_count} auto-fixable)"
+    summary += f", {report.error_count} errors, {report.warning_count} warnings"
+    click.echo(summary)
+    if fixable_count:
+        click.echo()
+        click.echo(f"Hint: Run `paperfmt fix` to auto-fix {fixable_count} issue(s), or `paperfmt fix --interactive` to review each fix.")
 
 
 def _build_report_file_lines(report: CheckReport) -> list[str]:
@@ -84,9 +92,17 @@ def _build_report_file_lines(report: CheckReport) -> list[str]:
         lines.append(f"{item.severity.upper()} {item.rule_id} line {item.line}: {item.message}{can_fix}")
     if not lines:
         lines.append("No issues found.")
-    lines.append(
-        f"Summary: {len(report.diagnostics)} issues, {report.error_count} errors, {report.warning_count} warnings"
-    )
+    fixable_count = sum(1 for d in report.diagnostics if d.can_fix)
+    summary = f"Summary: {len(report.diagnostics)} issues"
+    if fixable_count:
+        summary += f" ({fixable_count} auto-fixable)"
+    summary += f", {report.error_count} errors, {report.warning_count} warnings"
+    lines.append(summary)
+    if fixable_count:
+        lines.append(
+            f"Hint: Run `paperfmt fix` to auto-fix {fixable_count} issue(s), "
+            f"or `paperfmt fix --interactive` to review each fix."
+        )
     return lines
 
 
@@ -106,9 +122,19 @@ def _render_markdown_report(report: CheckReport) -> None:
         can_fix = "yes" if item.can_fix else "no"
         click.echo(f"| {item.severity.upper()} | {item.rule_id} | {item.line} | {item.message} | {can_fix} |")
     click.echo()
-    click.echo(
-        f"**Summary:** {len(report.diagnostics)} issues, {report.error_count} errors, {report.warning_count} warnings"
+    fixable_count = sum(1 for d in report.diagnostics if d.can_fix)
+    summary = (
+        f"**Summary:** {len(report.diagnostics)} issues"
+        + (f" ({fixable_count} auto-fixable)" if fixable_count else "")
+        + f", {report.error_count} errors, {report.warning_count} warnings"
     )
+    click.echo(summary)
+    if fixable_count:
+        click.echo()
+        click.echo(
+            f"> Hint: Run `paperfmt fix` to auto-fix {fixable_count} issue(s), "
+            f"or `paperfmt fix --interactive` to review each fix."
+        )
 
 
 def _append_report(state_dir: Path, title: str, body: str) -> None:
@@ -155,7 +181,7 @@ def check_command(
     cfg = load_project_config(config_path)
     effective_template = template_name or cfg.template
     effective_tex_file = tex_file or Path(cfg.main_tex)
-    state_dir = Path(cfg.state_dir)
+    state_dir = (effective_tex_file.parent.resolve() / cfg.state_dir).resolve()
     ruleset = default_ruleset(template=effective_template, bibliography=cfg.bibliography, rules=cfg.rules)
 
     if list_rules:
@@ -171,12 +197,14 @@ def check_command(
         raise click.ClickException(str(exc)) from exc
 
     if output_format == "json":
+        fixable_count = sum(1 for d in report.diagnostics if d.can_fix)
         payload = {
             "schema_version": "1.0",
             "template": effective_template,
             "input_file": str(report.input_file),
             "summary": {
                 "total": len(report.diagnostics),
+                "fixable": fixable_count,
                 "errors": report.error_count,
                 "warnings": report.warning_count,
             },
@@ -265,10 +293,17 @@ def _run_interactive_fix(
 ) -> None:
     """Step through fixable diagnostics one at a time with user prompts."""
 
+    # Build fixable_rules first — it is the canonical source of fixability
+    # (plugin.fix is not None) matching apply_safe_fixes behaviour.
+    fixable_rules = get_fixable_rules(template, ruleset)
+    fixable_rule_ids = set(fixable_rules.keys())
+
     # Initial check
     report = run_checks(tex_file=tex_file, template=template, ruleset=ruleset)
     all_diagnostics = report.diagnostics
-    queue: list[Diagnostic] = [d for d in all_diagnostics if d.can_fix]
+    # Filter by fixable_rules, not by d.can_fix, to stay consistent with
+    # apply_safe_fixes.
+    queue = [d for d in all_diagnostics if d.rule_id in fixable_rule_ids]
 
     total = len(all_diagnostics)
     fixable_count = len(queue)
@@ -283,7 +318,6 @@ def _run_interactive_fix(
     click.echo(f"Interactive fix mode — {fixable_count} items to review.")
     click.echo()
 
-    fixable_rules = get_fixable_rules(template, ruleset)
     original_text = tex_file.read_text(encoding="utf-8")
     file_text = original_text
     applied_count = 0
@@ -317,26 +351,21 @@ def _run_interactive_fix(
         )
 
         if choice == "y":
-            plugin = fixable_rules.get(diag.rule_id)
-            if plugin is not None:
-                new_text, changed = plugin.fix(file_text)
-                if changed:
-                    file_text = new_text
-                    if not dry_run:
-                        tex_file.write_text(file_text, encoding="utf-8")
-                    applied_count += 1
-                    click.echo(f"  ✓ Applied fix for {diag.rule_id}.")
-                else:
-                    click.echo(f"  - No changes needed for {diag.rule_id}.")
+            plugin = fixable_rules[diag.rule_id]  # guaranteed present by queue filter
+            new_text, changed = plugin.fix(file_text)
+            if changed:
+                file_text = new_text
+                if not dry_run:
+                    tex_file.write_text(file_text, encoding="utf-8")
+                applied_count += 1
+                click.echo(f"  ✓ Applied fix for {diag.rule_id}.")
             else:
-                click.echo(f"  - No fix plugin for {diag.rule_id}, skipping.")
-                queue.pop(0)
-                skipped_count += 1
-                continue
-            # Re-check to refresh line numbers; drop same-rule items (already fixed)
+                click.echo(f"  - No changes needed for {diag.rule_id}.")
+            # Re-check to refresh line numbers; rebuild queue from the same
+            # fixable_rule_ids to stay consistent with apply_safe_fixes.
             if not dry_run:
                 report = run_checks(tex_file=tex_file, template=template, ruleset=ruleset)
-                queue = [d for d in report.diagnostics if d.can_fix]
+                queue = [d for d in report.diagnostics if d.rule_id in fixable_rule_ids]
             else:
                 queue = [d for d in queue if d.rule_id != diag.rule_id]
             click.echo()
@@ -353,14 +382,22 @@ def _run_interactive_fix(
             click.echo(f"  Skipped all '{skipped_rule}' diagnostics ({removed} items).")
 
         elif choice == "a":
-            remaining_rule_ids: list[str] = list(dict.fromkeys(d.rule_id for d in queue))
-            for rule_id in remaining_rule_ids:
-                plugin = fixable_rules.get(rule_id)
-                if plugin is not None:
-                    new_text, changed = plugin.fix(file_text)
-                    if changed:
-                        file_text = new_text
-                        applied_count += 1
+            # Delegate to apply_safe_fixes so the result matches non-interactive fix.
+            if dry_run:
+                for rule_id in list(dict.fromkeys(d.rule_id for d in queue)):
+                    plugin = fixable_rules.get(rule_id)
+                    if plugin is not None:
+                        new_text, changed = plugin.fix(file_text)
+                        if changed:
+                            file_text = new_text
+                            applied_count += 1
+            else:
+                # Write current partial state so apply_safe_fixes picks it up
+                tex_file.write_text(file_text, encoding="utf-8")
+                result = apply_safe_fixes(tex_file=tex_file, template=template, ruleset=ruleset)
+                if result.changed:
+                    file_text = result.fixed_text
+                    applied_count += len(result.applied_fixes)
             queue.clear()
             break
 
@@ -430,7 +467,7 @@ def fix_command(
     cfg = load_project_config(config_path)
     effective_template = template_name or cfg.template
     effective_tex_file = tex_file or Path(cfg.main_tex)
-    state_dir = Path(cfg.state_dir)
+    state_dir = (effective_tex_file.parent.resolve() / cfg.state_dir).resolve()
     ruleset = default_ruleset(template=effective_template, bibliography=cfg.bibliography, rules=cfg.rules)
 
     if not effective_tex_file.exists():
