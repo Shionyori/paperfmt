@@ -9,7 +9,7 @@ import click
 
 from paperfmt import __version__
 from paperfmt.core.checker import apply_safe_fixes, default_ruleset, get_fixable_rules, run_checks
-from paperfmt.core.models import CheckReport, Diagnostic, RuleSet
+from paperfmt.core.models import CheckReport, RuleSet
 from paperfmt.core.paperfmt_config import load_project_config
 from paperfmt.core.rules import get_template_plugins
 from paperfmt.core.scaffold import create_project_scaffold, supported_templates
@@ -81,7 +81,10 @@ def _render_text_report(report: CheckReport) -> None:
     click.echo(summary)
     if fixable_count:
         click.echo()
-        click.echo(f"Hint: Run `paperfmt fix` to auto-fix {fixable_count} issue(s), or `paperfmt fix --interactive` to review each fix.")
+        click.echo(
+            f"Hint: Run `paperfmt fix` to auto-fix {fixable_count} issue(s), "
+            f"or `paperfmt fix --interactive` to review each fix."
+        )
 
 
 def _build_report_file_lines(report: CheckReport) -> list[str]:
@@ -544,7 +547,9 @@ def fix_command(
         _append_report(
             state_dir,
             "fix",
-            diff + "\n\n" + f"Applied fixes: {', '.join(sorted(set(result.applied_fixes)))}\nUpdated file: {effective_tex_file}",
+            diff + "\n\n"
+            + f"Applied fixes: {', '.join(sorted(set(result.applied_fixes)))}\n"
+            + f"Updated file: {effective_tex_file}",
         )
 
     if prune_unused:

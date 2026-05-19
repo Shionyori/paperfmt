@@ -329,10 +329,13 @@ def _fix_rule_012(text: str) -> tuple[str, bool]:
         line_start = 0
     else:
         line_start += 1
-    indent = text[line_start:end_doc] if text[line_start:end_doc].strip() == "" else "\n"
     # Preserve original indentation for \end{document}
     original_end_line = text[line_start:end_doc]
-    indent_str = original_end_line[: len(original_end_line) - len(original_end_line.lstrip())] if original_end_line.strip() else ""
+    indent_str = (
+        original_end_line[: len(original_end_line) - len(original_end_line.lstrip())]
+        if original_end_line.strip()
+        else ""
+    )
     balance_line = indent_str + "\\balance"
     if end_doc > 0 and text[end_doc - 1] != "\n":
         balance_line = "\n" + balance_line
