@@ -4,7 +4,7 @@ from pathlib import Path
 
 from paperfmt.core.models import CheckReport, Diagnostic, FixReport, RuleOverride, RuleSet
 from paperfmt.core.registry import is_supported_template, normalize_template
-from paperfmt.core.rules import get_template_plugins, get_template_rule_defaults
+from paperfmt.core.rules import RulePlugin, get_template_plugins, get_template_rule_defaults
 from paperfmt.core.tex_utils import resolve_includes
 
 
@@ -75,13 +75,13 @@ def apply_safe_fixes(tex_file: Path, template: str, ruleset: RuleSet | None = No
     )
 
 
-def get_fixable_rules(template: str, ruleset: RuleSet) -> dict[str, "RulePlugin"]:
+def get_fixable_rules(template: str, ruleset: RuleSet) -> dict[str, RulePlugin]:
     """Return {rule_id: plugin} for enabled plugins that have a fix function.
 
     Used by interactive fix mode to look up which plugin to invoke
     when the user approves a diagnostic.
     """
-    result: dict[str, "RulePlugin"] = {}
+    result: dict[str, RulePlugin] = {}
     for plugin in get_template_plugins(template):
         if plugin.fix is not None and ruleset.is_enabled(plugin.rule_id):
             result[plugin.rule_id] = plugin
