@@ -410,16 +410,16 @@ def _run_interactive_fix(
 
     # Write final result
     if applied_count > 0:
-        if dry_run:
-            diff = "\n".join(
-                difflib.unified_diff(
-                    original_text.splitlines(),
-                    file_text.splitlines(),
-                    fromfile=str(tex_file),
-                    tofile=f"{tex_file} (fixed)",
-                    lineterm="",
-                )
+        diff = "\n".join(
+            difflib.unified_diff(
+                original_text.splitlines(),
+                file_text.splitlines(),
+                fromfile=str(tex_file),
+                tofile=f"{tex_file} (fixed)",
+                lineterm="",
             )
+        )
+        if dry_run:
             click.echo()
             click.echo(diff)
             click.echo(f"Dry run — would apply {applied_count} fixes, skipped {skipped_count}.")
@@ -427,12 +427,14 @@ def _run_interactive_fix(
         else:
             tex_file.write_text(file_text, encoding="utf-8")
             click.echo()
+            click.echo(diff)
+            click.echo()
             click.echo(f"Applied {applied_count} fixes, skipped {skipped_count}.")
             click.echo(f"Updated file: {tex_file}")
             _append_report(
                 state_dir,
                 "fix(interactive)",
-                f"Applied {applied_count} fixes, skipped {skipped_count}.\nUpdated file: {tex_file}",
+                diff + "\n\n" + f"Applied {applied_count} fixes, skipped {skipped_count}.\nUpdated file: {tex_file}",
             )
     else:
         click.echo("No fixes applied.")
@@ -524,13 +526,25 @@ def fix_command(
             backup_path.write_text(result.original_text, encoding="utf-8")
             click.echo(f"Backup created: {backup_path}")
 
-        effective_tex_file.write_text(result.fixed_text, encoding="utf-8")
+        diff = "\n".join(
+            difflib.unified_diff(
+                result.original_text.splitlines(),
+                result.fixed_text.splitlines(),
+                fromfile=f"{effective_tex_file}",
+                tofile=f"{effective_tex_file} (fixed)",
+                lineterm="",
+            )
+        )
+        click.echo(diff)
+        click.echo()
         click.echo(f"Applied fixes: {', '.join(sorted(set(result.applied_fixes)))}")
         click.echo(f"Updated file: {effective_tex_file}")
+
+        effective_tex_file.write_text(result.fixed_text, encoding="utf-8")
         _append_report(
             state_dir,
             "fix",
-            f"Applied fixes: {', '.join(sorted(set(result.applied_fixes)))}\nUpdated file: {effective_tex_file}",
+            diff + "\n\n" + f"Applied fixes: {', '.join(sorted(set(result.applied_fixes)))}\nUpdated file: {effective_tex_file}",
         )
 
     if prune_unused:
