@@ -1,4 +1,4 @@
-# Phase 2: Multi-Template Support — Design
+# Multi-Template Support — Design
 
 ## Goal
 
@@ -133,10 +133,3 @@ No new CLI flags needed. `--list-rules` already works per-template.
 - Existing `paperfmt.toml` files continue to work. New templates use the same config schema.
 - Common rules are imported by `ieee_conf.py` via `COMMON_RULES` — the 11 rules are
   no longer defined in `ieee_conf.py` but the rule IDs remain identical.
-
-## Non-goals for Phase 2
-
-- Auto-detection of template from `.tex` content (can be Phase 3)
-- Custom user-defined rules via config (can be Phase 3)
-- Parallel rule execution (not needed at current scale)
-- Sub-file-level diagnostic tracking (multi-file support already works)

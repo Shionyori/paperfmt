@@ -1,4 +1,4 @@
-# Phase 3: Interactive Fix Mode — Design
+# Interactive Fix Mode — Design
 
 ## Goal
 
