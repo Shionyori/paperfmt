@@ -60,7 +60,7 @@ def test_fix_interactive_no_fixable_diagnostics() -> None:
         result = runner.invoke(main, ["fix", "--interactive"])
         # Should find no fixable diagnostics on compliant input
         # (may have non-fixable warnings from PAGE-LIMIT, etc.)
-        assert "No fixable diagnostics found." in result.output or result.output.count("fixable") >= 0
+        assert "No fixable diagnostics found." in result.output
 
 
 def test_fix_interactive_yes_applies_fix() -> None:
