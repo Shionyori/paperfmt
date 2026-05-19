@@ -9,7 +9,7 @@ import click
 
 from paperfmt import __version__
 from paperfmt.core.checker import apply_safe_fixes, default_ruleset, run_checks
-from paperfmt.core.models import CheckReport, RuleSet
+from paperfmt.core.models import CheckReport, Diagnostic, RuleSet
 from paperfmt.core.paperfmt_config import load_project_config
 from paperfmt.core.rules import get_template_plugins
 from paperfmt.core.scaffold import create_project_scaffold, supported_templates
@@ -240,6 +240,163 @@ def _handle_prune_unused(tex_file: Path, cfg: object, state_dir: Path, dry_run: 
         click.echo(f"Pruned unused entries from: {bib_path}")
 
 
+def _show_context(text: str, line_num: int, context_lines: int = 3) -> None:
+    """Print context around a diagnostic line with a marker."""
+    lines = text.splitlines()
+    target_idx = line_num - 1
+    start = max(0, target_idx - context_lines)
+    end = min(len(lines), target_idx + context_lines + 1)
+
+    click.echo("  ── Context ──")
+    for i in range(start, end):
+        marker = ">" if i == target_idx else " "
+        click.echo(f"  {marker}{i + 1:3d} | {lines[i]}")
+    click.echo("  ─────────────")
+
+
+def _run_interactive_fix(
+    tex_file: Path,
+    template: str,
+    ruleset: RuleSet,
+    *,
+    dry_run: bool,
+    backup: bool,
+    state_dir: Path,
+) -> None:
+    """Step through fixable diagnostics one at a time with user prompts."""
+    from paperfmt.core.checker import get_fixable_rules
+
+    # Initial check
+    report = run_checks(tex_file=tex_file, template=template, ruleset=ruleset)
+    all_diagnostics = report.diagnostics
+    queue: list[Diagnostic] = [d for d in all_diagnostics if d.can_fix]
+
+    total = len(all_diagnostics)
+    fixable_count = len(queue)
+    non_fixable = total - fixable_count
+    click.echo(f"Found {total} diagnostics ({fixable_count} fixable, {non_fixable} non-fixable).")
+    click.echo()
+
+    if not queue:
+        click.echo("No fixable diagnostics found.")
+        return
+
+    click.echo(f"Interactive fix mode — {fixable_count} items to review.")
+    click.echo()
+
+    fixable_rules = get_fixable_rules(template, ruleset)
+    original_text = tex_file.read_text(encoding="utf-8")
+    file_text = original_text
+    applied_count = 0
+    skipped_count = 0
+    prompt_index = 0
+
+    # Create backup before any modifications
+    if not dry_run and backup:
+        backup_dir = state_dir / "backup"
+        backup_dir.mkdir(parents=True, exist_ok=True)
+        backup_path = backup_dir / f"{tex_file.name}.bak"
+        backup_path.write_text(original_text, encoding="utf-8")
+
+    while queue:
+        diag = queue[0]
+        prompt_index += 1
+        remaining = len(queue)
+
+        click.echo(f"━━━ {prompt_index}/{fixable_count} ━━━")
+        click.echo(f"  Rule: {diag.rule_id} | Severity: {diag.severity}")
+        click.echo(f"  {diag.message}")
+        click.echo()
+
+        _show_context(resolve_includes(tex_file), diag.line)
+
+        choice = click.prompt(
+            "  Apply? [y]es / [n]o / [s]kip rule / [a]ll / [q]uit",
+            type=click.Choice(["y", "n", "s", "a", "q"]),
+            show_choices=False,
+            default="y",
+        )
+
+        if choice == "y":
+            plugin = fixable_rules.get(diag.rule_id)
+            if plugin is not None:
+                new_text, changed = plugin.fix(file_text)
+                if changed:
+                    file_text = new_text
+                    if not dry_run:
+                        tex_file.write_text(file_text, encoding="utf-8")
+                    applied_count += 1
+                    click.echo(f"  ✓ Applied fix for {diag.rule_id}.")
+                else:
+                    click.echo(f"  - No changes needed for {diag.rule_id}.")
+            # Re-check to refresh line numbers; drop same-rule items (already fixed)
+            if not dry_run:
+                report = run_checks(tex_file=tex_file, template=template, ruleset=ruleset)
+                queue = [d for d in report.diagnostics if d.can_fix]
+            else:
+                queue = [d for d in queue if d.rule_id != diag.rule_id]
+            click.echo()
+
+        elif choice == "n":
+            queue.pop(0)
+            skipped_count += 1
+
+        elif choice == "s":
+            skipped_rule = queue[0].rule_id
+            removed = sum(1 for d in queue if d.rule_id == skipped_rule)
+            queue = [d for d in queue if d.rule_id != skipped_rule]
+            skipped_count += removed
+            click.echo(f"  Skipped all '{skipped_rule}' diagnostics ({removed} items).")
+
+        elif choice == "a":
+            remaining_rule_ids: list[str] = list(dict.fromkeys(d.rule_id for d in queue))
+            for rule_id in remaining_rule_ids:
+                plugin = fixable_rules.get(rule_id)
+                if plugin is not None:
+                    new_text, changed = plugin.fix(file_text)
+                    if changed:
+                        file_text = new_text
+                        applied_count += 1
+            queue.clear()
+            break
+
+        elif choice == "q":
+            remaining = len(queue)
+            skipped_count += remaining
+            queue.clear()
+            click.echo(f"Quit after {applied_count} fixes. {remaining} remaining.")
+            break
+
+    # Write final result
+    if applied_count > 0:
+        if dry_run:
+            diff = "\n".join(
+                difflib.unified_diff(
+                    original_text.splitlines(),
+                    file_text.splitlines(),
+                    fromfile=str(tex_file),
+                    tofile=f"{tex_file} (fixed)",
+                    lineterm="",
+                )
+            )
+            click.echo()
+            click.echo(diff)
+            click.echo(f"Dry run — would apply {applied_count} fixes, skipped {skipped_count}.")
+            _append_report(state_dir, "fix(interactive-dry-run)", diff or "No diff")
+        else:
+            tex_file.write_text(file_text, encoding="utf-8")
+            click.echo()
+            click.echo(f"Applied {applied_count} fixes, skipped {skipped_count}.")
+            click.echo(f"Updated file: {tex_file}")
+            _append_report(
+                state_dir,
+                "fix(interactive)",
+                f"Applied {applied_count} fixes, skipped {skipped_count}.\nUpdated file: {tex_file}",
+            )
+    else:
+        click.echo("No fixes applied.")
+
+
 @main.command("fix")
 @click.argument("tex_file", required=False, type=click.Path(dir_okay=False, path_type=Path))
 @click.option(
@@ -255,6 +412,7 @@ def _handle_prune_unused(tex_file: Path, cfg: object, state_dir: Path, dry_run: 
     show_default=True,
 )
 @click.option("--prune-unused", is_flag=True, default=False, help="Remove uncited bibliography entries")
+@click.option("--interactive", "-i", is_flag=True, default=False, help="Step through fixes one at a time")
 def fix_command(
     tex_file: Path | None,
     template_name: str | None,
@@ -262,6 +420,7 @@ def fix_command(
     backup: bool,
     config_path: Path,
     prune_unused: bool,
+    interactive: bool,
 ) -> None:
     """Apply safe formatting fixes that do not change paper semantics."""
     cfg = load_project_config(config_path)
@@ -272,6 +431,19 @@ def fix_command(
 
     if not effective_tex_file.exists():
         raise click.ClickException(f"Input file not found: {effective_tex_file}")
+
+    if interactive:
+        _run_interactive_fix(
+            tex_file=effective_tex_file,
+            template=effective_template,
+            ruleset=ruleset,
+            dry_run=dry_run,
+            backup=backup,
+            state_dir=state_dir,
+        )
+        if prune_unused:
+            _handle_prune_unused(effective_tex_file, cfg, state_dir, dry_run=dry_run, backup=backup)
+        return
 
     try:
         result = apply_safe_fixes(tex_file=effective_tex_file, template=effective_template, ruleset=ruleset)
