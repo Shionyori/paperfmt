@@ -73,3 +73,18 @@ def apply_safe_fixes(tex_file: Path, template: str, ruleset: RuleSet | None = No
         original_text=original_text,
         fixed_text=updated_text,
     )
+
+
+def get_fixable_rules(template: str, ruleset: RuleSet) -> dict[str, "RulePlugin"]:
+    """Return {rule_id: plugin} for enabled plugins that have a fix function.
+
+    Used by interactive fix mode to look up which plugin to invoke
+    when the user approves a diagnostic.
+    """
+    from paperfmt.core.rules import get_template_plugins
+
+    result: dict[str, "RulePlugin"] = {}
+    for plugin in get_template_plugins(template):
+        if plugin.fix is not None and ruleset.is_enabled(plugin.rule_id):
+            result[plugin.rule_id] = plugin
+    return result
