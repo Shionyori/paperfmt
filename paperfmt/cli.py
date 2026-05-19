@@ -8,7 +8,7 @@ from pathlib import Path
 import click
 
 from paperfmt import __version__
-from paperfmt.core.checker import apply_safe_fixes, default_ruleset, run_checks
+from paperfmt.core.checker import apply_safe_fixes, default_ruleset, get_fixable_rules, run_checks
 from paperfmt.core.models import CheckReport, Diagnostic, RuleSet
 from paperfmt.core.paperfmt_config import load_project_config
 from paperfmt.core.rules import get_template_plugins
@@ -264,7 +264,6 @@ def _run_interactive_fix(
     state_dir: Path,
 ) -> None:
     """Step through fixable diagnostics one at a time with user prompts."""
-    from paperfmt.core.checker import get_fixable_rules
 
     # Initial check
     report = run_checks(tex_file=tex_file, template=template, ruleset=ruleset)
@@ -297,11 +296,11 @@ def _run_interactive_fix(
         backup_dir.mkdir(parents=True, exist_ok=True)
         backup_path = backup_dir / f"{tex_file.name}.bak"
         backup_path.write_text(original_text, encoding="utf-8")
+        click.echo(f"Backup created: {backup_path}")
 
     while queue:
         diag = queue[0]
         prompt_index += 1
-        remaining = len(queue)
 
         click.echo(f"━━━ {prompt_index}/{fixable_count} ━━━")
         click.echo(f"  Rule: {diag.rule_id} | Severity: {diag.severity}")
@@ -329,6 +328,11 @@ def _run_interactive_fix(
                     click.echo(f"  ✓ Applied fix for {diag.rule_id}.")
                 else:
                     click.echo(f"  - No changes needed for {diag.rule_id}.")
+            else:
+                click.echo(f"  - No fix plugin for {diag.rule_id}, skipping.")
+                queue.pop(0)
+                skipped_count += 1
+                continue
             # Re-check to refresh line numbers; drop same-rule items (already fixed)
             if not dry_run:
                 report = run_checks(tex_file=tex_file, template=template, ruleset=ruleset)
