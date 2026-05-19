@@ -4,7 +4,7 @@
 
 paperfmt is a CLI tool for pre-submission paper quality checks. It supports multi-file `.tex` projects, markdown reports, and automatic safe fixes.
 
-Current stable template: `ieee-conf` (23 rules, 6 auto-fixes).
+Current stable templates: `ieee-conf`, `acm-conf`, `neurips`, `acl-conf` (23 rules each, 11 shared rules).
 
 ## Installation
 
@@ -34,7 +34,8 @@ paperfmt fix [INPUT.tex] \
     [--config paperfmt.toml] \
     [--dry-run] \
     [--backup/--no-backup] \
-    [--prune-unused]
+    [--prune-unused] \
+    [--interactive]
 ```
 
 Notes:
@@ -44,6 +45,7 @@ Notes:
 - `--format markdown` outputs a markdown table report.
 - `--list-rules` lists all template rules with their enabled status and severity.
 - `--prune-unused` removes uncited entries from `.bib` files.
+- `--interactive` / `-i` steps through fixes one at a time with context display and `[y]es/[n]o/[s]kip rule/[a]ll/[q]uit` prompts.
 - Execution records are appended to `.paperfmt/report.txt`.
 
 ## Configuration-Driven Flow
@@ -106,7 +108,11 @@ All fixes are safe (no semantic changes) and create backups by default.
 
 Rules are organized per template:
 
-- `paperfmt/core/rules/ieee_conf.py`: all `ieee-conf` rules
+- `paperfmt/core/rules/common.py`: 11 shared cross-template rules
+- `paperfmt/core/rules/ieee_conf.py`: IEEE-specific rules
+- `paperfmt/core/rules/acm.py`: ACM-specific rules
+- `paperfmt/core/rules/neurips.py`: NeurIPS-specific rules
+- `paperfmt/core/rules/acl.py`: ACL-specific rules
 - `paperfmt/core/rules/__init__.py`: template-to-rule-set registry
 
 To add a new template:

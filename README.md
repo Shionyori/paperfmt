@@ -4,7 +4,7 @@
 
 paperfmt 是一个面向论文投稿前质检的 CLI 工具。支持 `.tex` 多文件项目、markdown 报告和自动修复。
 
-当前稳定模板：`ieee-conf`（23 条规则，6 个自动修复）。
+当前稳定模板：`ieee-conf`、`acm-conf`、`neurips`、`acl-conf`（各 23 条规则，共享 11 条通用规则）。
 
 ## 安装
 
@@ -34,7 +34,8 @@ paperfmt fix [INPUT.tex] \
     [--config paperfmt.toml] \
     [--dry-run] \
     [--backup/--no-backup] \
-    [--prune-unused]
+    [--prune-unused] \
+    [--interactive]
 ```
 
 说明：
@@ -44,6 +45,7 @@ paperfmt fix [INPUT.tex] \
 - `--format markdown` 输出 markdown 表格格式报告。
 - `--list-rules` 列出当前模板所有规则及其启用状态和严重级别。
 - `--prune-unused` 删除 `.bib` 中未被引用的条目。
+- `--interactive` / `-i` 交互式修复：逐条展示诊断、显示上下文，用户选择 `[y]es/[n]o/[s]kip rule/[a]ll/[q]uit`。
 - 所有执行记录会追加到 `.paperfmt/report.txt`。
 
 ## 配置驱动
@@ -106,7 +108,11 @@ paperfmt fix [INPUT.tex] \
 
 当前规则按模板分文件组织：
 
-- `paperfmt/core/rules/ieee_conf.py`：`ieee-conf` 全部规则
+- `paperfmt/core/rules/common.py`：11 条跨模板通用规则
+- `paperfmt/core/rules/ieee_conf.py`：IEEE 特有规则
+- `paperfmt/core/rules/acm.py`：ACM 特有规则
+- `paperfmt/core/rules/neurips.py`：NeurIPS 特有规则
+- `paperfmt/core/rules/acl.py`：ACL 特有规则
 - `paperfmt/core/rules/__init__.py`：模板到规则集的汇总注册
 
 新增模板建议流程：
