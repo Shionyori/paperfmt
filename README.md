@@ -2,33 +2,52 @@
 
 # paperfmt
 
-paperfmt 是一个面向论文投稿前质检的 CLI 工具。支持 `.tex` 多文件项目、markdown 报告和自动修复。
+论文的自动化质检与修复工具。解析 `.tex` 多文件项目，生成可读报告，并提供一键修复。
 
-当前稳定模板：`ieee-conf`、`acm-conf`、`neurips`、`acl-conf`（各 23 条规则，共享 11 条通用规则）。
+支持模板：`ieee-conf` · `acm-conf` · `neurips` · `acl-conf`
 
-## 安装
+## 快速开始
 
 ```bash
-pip install -e ".[dev]"        # 开发安装（含测试依赖）
-pip install -e ".[image,link]"  # 可选：图片分辨率和链接可达性检查
-pip install -e ".[full]"        # 全部可选依赖
+# 在论文项目目录下初始化
+paperfmt init --template ieee-conf
+
+# 运行检查
+paperfmt check
+
+# 一键修复
+paperfmt fix
 ```
 
-## 命令说明
+## 命令参考
+
+### `paperfmt init`
 
 ```bash
-# 初始化项目
 paperfmt init --template ieee-conf [--out DIR] [--force]
+```
 
-# 检查
+创建 `paperfmt.toml` 和 `.paperfmt/` 目录。已有 `.tex` 文件自动备份至 `.paperfmt/backup/`。
+
+### `paperfmt check`
+
+```bash
 paperfmt check [INPUT.tex] \
     [--template ieee-conf] \
     [--config paperfmt.toml] \
     [--format text|json|markdown] \
     [--list-rules] \
     [--strict]
+```
 
-# 修复
+- 自动追踪 `\input`/`\include` 引用的子文件
+- `--format markdown` 输出 Markdown 表格
+- `--list-rules` 列出所有规则及启用状态
+- `--strict` 存在 warning 时返回非零退出码（CI 友好）
+
+### `paperfmt fix`
+
+```bash
 paperfmt fix [INPUT.tex] \
     [--template ieee-conf] \
     [--config paperfmt.toml] \
@@ -38,93 +57,112 @@ paperfmt fix [INPUT.tex] \
     [--interactive]
 ```
 
-说明：
-- `init` 初始化工具文件，已有 `.tex` 文件会自动备份到 `.paperfmt/backup/`。
-- `check` / `fix` 默认读取 `paperfmt.toml` 中的 `main_tex`、`bibliography`、`rules`。
-- `check` 支持 `\input`/`\include` 引用的子文件递归解析。
-- `--format markdown` 输出 markdown 表格格式报告。
-- `--list-rules` 列出当前模板所有规则及其启用状态和严重级别。
-- `--prune-unused` 删除 `.bib` 中未被引用的条目。
-- `--interactive` / `-i` 交互式修复：逐条展示诊断、显示上下文，用户选择 `[y]es/[n]o/[s]kip rule/[a]ll/[q]uit`。
-- 所有执行记录会追加到 `.paperfmt/report.txt`。
+- `--dry-run` 仅展示 diff，不写入文件
+- `--backup` 修复前自动备份（默认开启）
+- `--prune-unused` 清理 `.bib` 中未被引用的条目
+- `--interactive` / `-i` 逐条确认修复，支持 `[y]es/[n]o/[s]kip rule/[a]ll/[q]uit`
 
-## 配置驱动
+所有修复均为安全修复：仅调整格式，不改变论文语义。
 
-`paperfmt.toml` 是纯文本配置，驱动链路为：
+## 配置
 
-`paperfmt.toml -> RuleSet -> template rules plugins`
+`paperfmt.toml` 示例：
 
-你可以手动修改：
-- `main_tex`
-- `bibliography`
-- `state_dir`
-- 每条规则的 `enabled` / `severity`
+```toml
+main_tex = "paper.tex"
+bibliography = "refs.bib"
 
-## 已实现规则（ieee-conf，共 23 条）
+[rules.IEEE006]
+enabled = false        # 关闭匿名泄露检查
 
-### 结构与排版
-- `IEEE001` 图注位置检查（图注应在 `\includegraphics` 后） **[可修复]**
-- `IEEE002` 表注位置检查（表注应在 `tabular` 前） **[可修复]**
-- `IEEE004` 缺失 `abstract` 环境（error）
-- `IEEE005` 缺失 `IEEEkeywords` 环境
-- `IEEE008` 缺失 `\thanks`（作者单位/基金信息）
-- `IEEE011` 缺失 `\bibliographystyle{IEEEtran}`（error） **[可修复]**
-- `IEEE012` 缺失 `\balance` 等分栏平衡命令
-- `TAB-FORMAT` 表格 `\hline` 风格检查（建议 `booktabs`）
-
-### 引用与交叉引用
-- `IEEE003` 引用命令规范化（`\citep` / `\citet` 归一化为 `\cite`）**[可修复]**
-- `IEEE009` `\cite` keys 应为逗号分隔 **[可修复]**
-- `IEEE010` 公式环境缺少末尾标点
-- `CITE-MANUAL` 手写数字引用（如 `[1]`）
-- `REF-HARDCODE` 硬编码交叉引用（如 `Eq. (1)`）
-- `FIG-REF` 图片标签未被文中引用
-- `TAB-REF` 表格标签未被文中引用
-- `EQ-REF` 公式标签未被文中引用
-
-### 匿名与文献
-- `IEEE006` 双盲匿名泄漏（作者块）
-- `IEEE007` 已引用条目 DOI 缺失
-- `BIB-CROSSCHECK` `.tex` 与 `.bib` 双向比对（缺失键/未引用条目）
-
-### 外部资源与启发式检查
-- `IMG-RES` 图片分辨率检查（需 Pillow，可选）
-- `LINK-VALID` URL/DOI 可达性检查（需 httpx，可选）
-- `PAGE-LIMIT` 页数估算（IEEE 会议通常 6-8 页）
-- `SEC-DEPTH` 章节嵌套深度（`\subsubsection` 以上警告）
-
-## 已实现自动修复（safe fixes，共 6 个）
-
-- `IEEE001` — 图注位置修正（`\caption` 移至 `\includegraphics` 之后）
-- `IEEE002` — 表注位置修正（`\caption` 移至 `tabular` 之前）
-- `IEEE003` — `\citep` / `\citet` 归一化为 `\cite`
-- `IEEE009` — `\cite` keys 空格分隔修正为逗号分隔
-- `IEEE011` — 自动插入 `\bibliographystyle{IEEEtran}`
-- `--prune-unused` — 删除 `.bib` 中未被引用的条目
-
-所有修复均为安全修复，不会改变论文语义，且默认创建备份。
-
-## 规则扩展方式
-
-当前规则按模板分文件组织：
-
-- `paperfmt/core/rules/common.py`：11 条跨模板通用规则
-- `paperfmt/core/rules/ieee_conf.py`：IEEE 特有规则
-- `paperfmt/core/rules/acm.py`：ACM 特有规则
-- `paperfmt/core/rules/neurips.py`：NeurIPS 特有规则
-- `paperfmt/core/rules/acl.py`：ACL 特有规则
-- `paperfmt/core/rules/__init__.py`：模板到规则集的汇总注册
-
-新增模板建议流程：
-1. 新建 `paperfmt/core/rules/<template>.py`，定义 `RULES: tuple[RulePlugin, ...]`
-2. 在 `paperfmt/core/rules/__init__.py` 的 `TEMPLATE_RULES` 中注册
-3. 在 `paperfmt/core/registry.py` 的 `CANONICAL_TEMPLATES` 中增加模板标识
-
-## 开发
-
-```bash
-pip install -e ".[dev]"
-python -m pytest -q        # 运行全部测试
-python -m pytest -v         # 详细输出
-python -m paperfmt --help   # 查看 CLI 帮助
+[rules.IEEE007]
+severity = "warning"   # DOI 缺失降级为警告
 ```
+
+执行记录自动追加至 `.paperfmt/report.txt`。
+
+## 规则列表
+
+### ieee-conf
+
+| 规则 | 说明 | 严重级别 | 可修复 |
+|------|------|----------|--------|
+| `IEEE001` | 图注应在 `\includegraphics` 之后 | warning | ✓ |
+| `IEEE002` | 表注应在 `tabular` 之前 | warning | ✓ |
+| `IEEE003` | `\citep`/`\citet` 归一化为 `\cite` | warning | ✓ |
+| `IEEE004` | 缺失 `abstract` 环境 | error | |
+| `IEEE005` | 缺失 `IEEEkeywords` 环境 | warning | ✓ |
+| `IEEE006` | 双盲匿名泄漏（作者块） | warning | |
+| `IEEE007` | 已引用条目 DOI 缺失 | warning | |
+| `IEEE008` | 缺失 `\thanks`（作者单位/基金信息） | warning | |
+| `IEEE009` | `\cite` keys 应为逗号分隔 | warning | ✓ |
+| `IEEE010` | 公式环境缺少末尾标点 | warning | ✓ |
+| `IEEE011` | 缺失 `\bibliographystyle{IEEEtran}` | error | ✓ |
+| `IEEE012` | 缺失 `\balance` 等分栏平衡命令 | info | ✓ |
+
+### acm-conf
+
+| 规则 | 说明 | 严重级别 | 可修复 |
+|------|------|----------|--------|
+| `ACM001` | 缺失 `\documentclass{acmart}` | error | |
+| `ACM002` | 缺失 `\keywords{...}` | warning | |
+| `ACM003` | 缺失 `\bibliographystyle{ACM-Reference-Format}` | error | ✓ |
+| `ACM004` | 缺失 CCS 概念 (`\ccsdesc`) | warning | |
+| `ACM005` | `\thanks` 应替换为 `\titlenote` | warning | ✓ |
+| `ACM006` | 作者缺失 `\affiliation{...}` | warning | |
+| `ACM007` | 图注应在 `\includegraphics` 之后 | warning | ✓ |
+| `ACM008` | 表注应在 `tabular` 之前 | warning | ✓ |
+| `ACM009` | 缺失 `\received`/`\accepted` | warning | |
+| `ACM010` | `\citeauthor`/`\citeyear` 应替换为 `\cite` | warning | |
+| `ACM011` | 作者缺失 `\email{...}` | warning | |
+| `ACM012` | `acmsmall` 格式参数检查 | info | |
+
+### neurips
+
+| 规则 | 说明 | 严重级别 | 可修复 |
+|------|------|----------|--------|
+| `NEUR001` | 缺失 `\documentclass{neurips_XXX}` | error | |
+| `NEUR002` | 缺失 `\usepackage[preprint]{neurips_XXX}` | error | |
+| `NEUR003` | 缺失作者自查表章节 | warning | |
+| `NEUR004` | `\author` 应在 `\begin{abstract}` 之后 | warning | |
+| `NEUR005` | `\bibliographystyle` 应为 `{plain}` 等 | warning | |
+| `NEUR006` | `\cite` 应替换为 `\citep`/`\citet` | warning | ✓ |
+| `NEUR007` | 缺失 `abstract` 环境 | error | |
+| `NEUR008` | 缺失 `\section{Introduction}` | warning | |
+| `NEUR009` | 图注应在 `\includegraphics` 之后 | warning | ✓ |
+| `NEUR010` | 表注应在 `tabular` 之前 | warning | ✓ |
+| `NEUR011` | `\citep`/`\citet` keys 应为逗号分隔 | warning | ✓ |
+| `NEUR012` | 缺失 `\balance` 分栏平衡命令 | info | |
+
+### acl-conf
+
+| 规则 | 说明 | 严重级别 | 可修复 |
+|------|------|----------|--------|
+| `ACL001` | 缺失 `\usepackage{acl}` | error | |
+| `ACL002` | 缺失 `\author` 或 `\affiliation` | warning | |
+| `ACL003` | 缺失 `\bibliographystyle{acl_natbib}` | error | ✓ |
+| `ACL004` | `\cite` 应替换为 `\citep`/`\citet` | warning | ✓ |
+| `ACL005` | 缺失 `abstract` 环境 | error | |
+| `ACL006` | 图注应在 `\includegraphics` 之后 | warning | ✓ |
+| `ACL007` | 表注应在 `tabular` 之前 | warning | ✓ |
+| `ACL008` | 缺失 Limitations/Ethics 章节（ARR 要求） | warning | |
+| `ACL009` | 缺失数据/代码仓库链接 | warning | |
+| `ACL010` | `\thanks`/`\footnote` 可能破坏匿名 | warning | |
+| `ACL011` | `a4paper` 应改为 US letter | warning | |
+| `ACL012` | 缺失 `\aclfinalcopy`（camera-ready） | info | |
+
+### 通用规则（所有模板共享）
+
+| 规则 | 说明 | 严重级别 | 可选依赖 |
+|------|------|----------|----------|
+| `CITE-MANUAL` | 手写数字引用（如 `[1]`），应使用 `\cite` | warning | |
+| `REF-HARDCODE` | 硬编码交叉引用（如 `Eq. (1)`），应使用 `\ref` | warning | |
+| `TAB-FORMAT` | 表格 `\hline` 建议替换为 booktabs 命令 | warning | |
+| `BIB-CROSSCHECK` | `.tex` 与 `.bib` 双向比对 | warning | |
+| `FIG-REF` | 图片标签未被文中引用 | warning | |
+| `TAB-REF` | 表格标签未被文中引用 | warning | |
+| `EQ-REF` | 公式标签未被文中引用 | warning | |
+| `IMG-RES` | 图片分辨率检查（建议 300 DPI） | warning | Pillow |
+| `LINK-VALID` | URL/DOI 可达性检查 | warning | httpx |
+| `PAGE-LIMIT` | 页数估算 | warning | |
+| `SEC-DEPTH` | 章节嵌套深度（`\subsubsection` 以上警告） | info | |
