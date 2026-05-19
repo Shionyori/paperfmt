@@ -241,7 +241,7 @@ def _fix_equation_punctuation(text: str) -> tuple[str, bool]:
                 body = core_part + "," + label_part
             else:
                 stripped = core_part.rstrip()
-                trailing = body[len(stripped):]
+                trailing = body[len(stripped) :]
                 body = stripped + "," + trailing
 
         return match.group(0).replace(match.group(1), body)

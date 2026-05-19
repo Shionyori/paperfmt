@@ -547,7 +547,8 @@ def fix_command(
         _append_report(
             state_dir,
             "fix",
-            diff + "\n\n"
+            diff
+            + "\n\n"
             + f"Applied fixes: {', '.join(sorted(set(result.applied_fixes)))}\n"
             + f"Updated file: {effective_tex_file}",
         )
