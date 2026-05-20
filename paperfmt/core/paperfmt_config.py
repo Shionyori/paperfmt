@@ -54,7 +54,10 @@ def load_project_config(config_path: Path) -> ProjectConfig:
     if not config_path.exists():
         return ProjectConfig(rules={})
 
-    data = tomllib.loads(config_path.read_text(encoding="utf-8"))
+    try:
+        data = tomllib.loads(config_path.read_text(encoding="utf-8"))
+    except (ValueError, TypeError) as exc:
+        raise ValueError(f"Invalid TOML in {config_path}: {exc}") from exc
     paperfmt = data.get("paperfmt", {})
     rules_raw = data.get("rules", {})
 

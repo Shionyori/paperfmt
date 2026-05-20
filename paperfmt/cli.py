@@ -10,7 +10,7 @@ import click
 from paperfmt import __version__
 from paperfmt.core.checker import apply_safe_fixes, default_ruleset, get_fixable_rules, run_checks
 from paperfmt.core.models import CheckReport, RuleSet
-from paperfmt.core.paperfmt_config import load_project_config
+from paperfmt.core.paperfmt_config import ProjectConfig, load_project_config
 from paperfmt.core.rules import get_template_plugins
 from paperfmt.core.scaffold import create_project_scaffold, supported_templates
 from paperfmt.core.tex_utils import resolve_includes
@@ -57,7 +57,7 @@ def _list_rules(template: str, ruleset: RuleSet) -> None:
     for plugin in plugins:
         enabled = ruleset.is_enabled(plugin.rule_id)
         severity = ruleset.resolve_severity(plugin.rule_id, plugin.default_severity)
-        status = "enabled " if enabled else "disabled"
+        status = "enabled" if enabled else "disabled"
         fixable = " (fixable)" if plugin.fix is not None else ""
         click.echo(f"  [{status}] {plugin.rule_id} ({severity}){fixable}")
         click.echo(f"          {plugin.description}")
@@ -236,7 +236,7 @@ def check_command(
     raise SystemExit(exit_code)
 
 
-def _handle_prune_unused(tex_file: Path, cfg: object, state_dir: Path, dry_run: bool, backup: bool) -> None:
+def _handle_prune_unused(tex_file: Path, cfg: ProjectConfig, state_dir: Path, dry_run: bool, backup: bool) -> None:
     from paperfmt.core.rules.ieee_conf import prune_unused_bib_entries
 
     bib_path = (tex_file.parent / cfg.bibliography).resolve()
