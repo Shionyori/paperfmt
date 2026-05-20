@@ -1,52 +1,65 @@
-% [paperfmt] 演示文件：故意包含常见格式/规范问题，用于测试 check/fix
+% paperfmt 示例项目 — 故意包含常见格式/规范问题，用于测试 check/fix
+% 运行: cd example && paperfmt check && paperfmt fix --interactive
 \documentclass{article} % 实际投稿应改为 \documentclass[conference]{IEEEtran}
 \usepackage{graphicx}
 \usepackage{amsmath}
 \usepackage{algorithm, algpseudocode}
-\usepackage{booktabs} % 已加载但未在表格中使用
+\usepackage{booktabs} % 已加载但表格中仍使用 \hline（触发 TAB-FORMAT）
 
 \begin{document}
 
 \title{DemoPaper: A Lightweight Framework for Edge AI}
-\author{Alice Smith\thanks{Corresponding author. Email: alice.smith@univ.edu} \and Bob Jones} % [paperfmt] 双盲期应匿名
+\author{Alice Smith\thanks{Corresponding author. Email: alice.smith@univ.edu} \and Bob Jones}
+% [IEEE006] 双盲投稿期间不应包含作者信息
 \maketitle
 
 \begin{abstract}
-This is a demonstration abstract. It contains placeholder text to simulate a real academic paper structure for testing the paperfmt tool.
+This demonstration abstract contains placeholder text to simulate a real academic paper
+structure for testing the paperfmt tool.
 \end{abstract}
 
+\begin{IEEEkeywords}
+edge AI, model compression, pruning, real-time inference
+\end{IEEEkeywords}
+
 \section{Introduction}
-Recent advances in edge computing [1] have enabled real-time inference on resource-constrained devices. However, model compression often degrades accuracy. Our method (Fig. \ref{fig:arch}) addresses this trade-off.
+Recent advances in edge computing [1] have enabled real-time inference on resource-constrained
+devices. However, model compression often degrades accuracy. Our method (Fig. \ref{fig:arch})
+addresses this trade-off.
 
 As formulated in Eq. (1), the objective function balances classification and regularization.
 \begin{equation}
 \mathcal{L}_{total} = \alpha \mathcal{L}_{cls} + \beta \mathcal{L}_{reg} \label{eq:loss}
-\end{equation}
+\end{equation} % [IEEE010] 公式末尾缺少标点
 
 \begin{figure}[htbp]
 \centering
 \includegraphics[width=0.8\textwidth]{figs/arch.png}
 \label{fig:arch}
-\caption{System architecture diagram. (Caption above figure violates IEEE style)} % [paperfmt] 图注位置错误\end{figure}
+\caption{System architecture diagram.} % [IEEE001] 图注应在 \includegraphics 之后
+\end{figure}
 
 \section{Method}
-We build upon the single-stage detection paradigm \cite{redmon2016yolo}. The proposed pruning strategy reduces FLOPs by 40\%. Table \ref{tab:results} summarizes the performance gain.
+We build upon the single-stage detection paradigm \cite{redmon2016yolo}. The proposed pruning
+strategy reduces FLOPs by 40\%. Table \ref{tab:results} summarizes the performance gain.
 
 \begin{table}[htbp]
-\caption{Comparison with baseline methods on EdgeBench v2} % [paperfmt] 表注位置正确，但表格格式不合规
+\caption{Comparison with baseline methods on EdgeBench v2}
 \centering
 \begin{tabular}{l c c}
-\hline
+\hline % [TAB-FORMAT] 应使用 \toprule
 Model & mAP (\%) & Latency (ms) \\
 \hline
 MobileNetV2 & 72.4 & 15.2 \\
 Ours & \textbf{78.9} & \textbf{11.8} \\
-\hline
+\hline % [TAB-FORMAT] 应使用 \bottomrule
 \end{tabular}
 \label{tab:results}
 \end{table}
 
-The training procedure is detailed in Algorithm \ref{alg:train}. We also adopt the data augmentation strategy from \cite{liu2016ssd} and the distillation loss proposed in \cite{hinton2015distill,missing_ref}.
+The training procedure is detailed in Algorithm \ref{alg:train}. We also adopt the data
+augmentation strategy from \cite{liu2016ssd} and the distillation loss proposed in
+\cite{hinton2015distill,missing_ref}. % [BIB-CROSSCHECK] missing_ref 在 bib 中不存在
 
 \begin{algorithm}
 \caption{Adaptive Pruning Routine}
@@ -62,8 +75,10 @@ The training procedure is detailed in Algorithm \ref{alg:train}. We also adopt t
 \end{algorithm}
 
 \section{Conclusion}
-We presented a lightweight framework for edge AI. Future work will explore quantization-aware training.
+We presented a lightweight framework for edge AI. Future work will explore
+quantization-aware training.
 
 \bibliographystyle{IEEEtran}
 \bibliography{references}
+% [IEEE012] 双栏格式建议添加 \balance 命令
 \end{document}

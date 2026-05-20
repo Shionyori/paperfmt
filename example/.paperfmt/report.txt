@@ -29,3 +29,57 @@ WARNING REF-HARDCODE line 21: Hard-coded cross reference detected; use \ref{...}
 WARNING TAB-FORMAT line 39: Detected \hline in table; prefer booktabs commands (\toprule/\midrule/\bottomrule).
 Summary: 6 issues, 0 errors, 6 warnings
 
+[2026-05-20T15:47:20] check
+WARNING BIB-CROSSCHECK line 1: Citation key 'missing_ref' is used in tex but missing in bibliography.
+WARNING BIB-CROSSCHECK line 1: Bibliography entry 'unused_entry' is not cited in tex.
+WARNING IEEE005 line 1: Missing IEEEkeywords environment. (fixable)
+WARNING IEEE007 line 1: Citation 'redmon2016yolo' is missing DOI in bibliography entry.
+WARNING EQ-REF line 2: Equation label 'eq:loss' is not referenced in text.
+WARNING IEEE006 line 11: Possible anonymization leak in author block for double-blind submission.
+WARNING CITE-MANUAL line 19: Manual numeric citation detected; use \cite{...} instead of [n].
+WARNING REF-HARDCODE line 21: Hard-coded cross reference detected; use \ref{...} or \eqref{...}.
+WARNING IEEE010 line 22: Equation should end with punctuation (comma or period). (fixable)
+WARNING TAB-FORMAT line 39: Detected \hline in table; prefer booktabs commands (\toprule/\midrule/\bottomrule). (fixable)
+INFO IEEE012 line 68: Consider adding \balance or \balancest authors before \end{document} for two-column IEEE format. (fixable)
+Summary: 11 issues (4 auto-fixable), 0 errors, 10 warnings
+Hint: Run `paperfmt fix` to auto-fix 4 issue(s), or `paperfmt fix --interactive` to review each fix.
+
+[2026-05-20T15:50:56] check
+WARNING BIB-CROSSCHECK line 1: Citation key 'missing_ref' is used in tex but missing in bibliography.
+WARNING BIB-CROSSCHECK line 1: Bibliography entry 'unused_entry' is not cited in tex.
+WARNING IEEE007 line 1: Citation 'redmon2016yolo' is missing DOI in bibliography entry.
+WARNING EQ-REF line 2: Equation label 'eq:loss' is not referenced in text.
+WARNING IEEE006 line 12: Possible anonymization leak in author block for double-blind submission.
+WARNING CITE-MANUAL line 26: Manual numeric citation detected; use \cite{...} instead of [n].
+WARNING REF-HARDCODE line 30: Hard-coded cross reference detected; use \ref{...} or \eqref{...}.
+WARNING IEEE010 line 31: Equation should end with punctuation (comma or period). (fixable)
+WARNING TAB-FORMAT line 50: Detected \hline in table; prefer booktabs commands (\toprule/\midrule/\bottomrule). (fixable)
+Summary: 9 issues (2 auto-fixable), 0 errors, 9 warnings
+Hint: Run `paperfmt fix` to auto-fix 2 issue(s), or `paperfmt fix --interactive` to review each fix.
+
+[2026-05-20T16:08:46] check
+WARNING BIB-CROSSCHECK line 1: Citation key 'missing_ref' is used in tex but missing in bibliography.
+WARNING BIB-CROSSCHECK line 1: Bibliography entry 'unused_entry' is not cited in tex.
+WARNING IEEE007 line 1: Citation 'redmon2016yolo' is missing DOI in bibliography entry.
+WARNING EQ-REF line 2: Equation label 'eq:loss' is not referenced in text.
+WARNING IEEE006 line 12: Possible anonymization leak in author block for double-blind submission.
+WARNING CITE-MANUAL line 26: Manual numeric citation detected; use \cite{...} instead of [n].
+WARNING REF-HARDCODE line 30: Hard-coded cross reference detected; use \ref{...} or \eqref{...}.
+WARNING IEEE010 line 31: Equation should end with punctuation (comma or period). (fixable)
+WARNING TAB-FORMAT line 50: Detected \hline in table; prefer booktabs commands (\toprule/\midrule/\bottomrule). (fixable)
+Summary: 9 issues (2 auto-fixable), 0 errors, 9 warnings
+Hint: Run `paperfmt fix` to auto-fix 2 issue(s), or `paperfmt fix --interactive` to review each fix.
+
+[2026-05-20T16:12:38] check
+WARNING BIB-CROSSCHECK line 1: Citation key 'missing_ref' is used in tex but missing in bibliography.
+WARNING BIB-CROSSCHECK line 1: Bibliography entry 'unused_entry' is not cited in tex.
+WARNING IEEE007 line 1: Citation 'redmon2016yolo' is missing DOI in bibliography entry.
+WARNING EQ-REF line 2: Equation label 'eq:loss' is not referenced in text.
+WARNING IEEE006 line 12: Possible anonymization leak in author block for double-blind submission.
+WARNING CITE-MANUAL line 26: Manual numeric citation detected; use \cite{...} instead of [n].
+WARNING REF-HARDCODE line 30: Hard-coded cross reference detected; use \ref{...} or \eqref{...}.
+WARNING IEEE010 line 31: Equation should end with punctuation (comma or period). (fixable)
+WARNING TAB-FORMAT line 50: Detected \hline in table; prefer booktabs commands (\toprule/\midrule/\bottomrule). (fixable)
+Summary: 9 issues (2 auto-fixable), 0 errors, 9 warnings
+Hint: Run `paperfmt fix` to auto-fix 2 issue(s), or `paperfmt fix --interactive` to review each fix.
+

@@ -3,7 +3,7 @@
   author    = {Redmon, Joseph and Divvala, Santosh and Girshick, Ross and Farhadi, Ali},
   booktitle = {Proceedings of the IEEE Conference on Computer Vision and Pattern Recognition},
   year      = {2016}
-  % [paperfmt] 缺失 DOI、页码
+  % [IEEE007] 缺失 DOI
 }
 
 @article{liu2016ssd,
@@ -13,7 +13,7 @@
   year      = {2016},
   pages     = {21--37},
   doi       = {10.1007/978-3-319-46448-0_2}
-  % [paperfmt] 作者格式不统一 (First Last vs Last, First)
+  % 格式较规范，作为对照
 }
 
 @article{hinton2015distill,
@@ -22,7 +22,6 @@
   journal   = {arXiv preprint arXiv:1503.02531},
   year      = {2015},
   doi       = {10.48550/arXiv.1503.02531}
-  % [paperfmt] 格式规范，作为正例对照
 }
 
 @misc{unused_entry,
@@ -30,8 +29,7 @@
   author    = {Doe, John},
   year      = {2023},
   doi       = {10.1234/example.doi}
-  % [paperfmt] 正文未引用此条目
+  % [BIB-CROSSCHECK] 正文未引用此条目
 }
 
-% 靶场说明：正文会引用 \cite{missing_ref}（此处故意缺失）
-% 且 unused_entry 在 bibliography 中存在但正文不引用，用于触发 BIB-CROSSCHECK
+% 正文引用 \cite{missing_ref}，但此处故意缺失该条目，用于触发 BIB-CROSSCHECK 双向比对
