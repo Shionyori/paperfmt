@@ -362,15 +362,17 @@ def _run_interactive_fix(
                     tex_file.write_text(file_text, encoding="utf-8")
                 applied_count += 1
                 click.echo(f"  ✓ Applied fix for {diag.rule_id}.")
+                # Re-check to refresh line numbers; rebuild queue from the same
+                # fixable_rule_ids to stay consistent with apply_safe_fixes.
+                if not dry_run:
+                    report = run_checks(tex_file=tex_file, template=template, ruleset=ruleset)
+                    queue = [d for d in report.diagnostics if d.rule_id in fixable_rule_ids]
+                else:
+                    queue = [d for d in queue if d.rule_id != diag.rule_id]
             else:
                 click.echo(f"  - No changes needed for {diag.rule_id}.")
-            # Re-check to refresh line numbers; rebuild queue from the same
-            # fixable_rule_ids to stay consistent with apply_safe_fixes.
-            if not dry_run:
-                report = run_checks(tex_file=tex_file, template=template, ruleset=ruleset)
-                queue = [d for d in report.diagnostics if d.rule_id in fixable_rule_ids]
-            else:
-                queue = [d for d in queue if d.rule_id != diag.rule_id]
+                queue.pop(0)
+                skipped_count += 1
             click.echo()
 
         elif choice == "n":

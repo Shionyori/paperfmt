@@ -146,7 +146,7 @@ def check_table_format_booktabs(text: str) -> list[Diagnostic]:
     return diagnostics
 
 
-HLINE_RE = re.compile(r"^(\s*)\\hline\s*$", re.MULTILINE)
+HLINE_RE = re.compile(r"^(\s*)\\hline\s*(?:%.*)?$", re.MULTILINE)
 
 
 def fix_table_format_booktabs(text: str) -> tuple[str, bool]:
